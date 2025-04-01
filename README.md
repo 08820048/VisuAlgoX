@@ -28,7 +28,7 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 
 ## 🖥️ 在线体验
 
-👉 [VisuAlgoX 官方网站](https://yourwebsite.com) （请替换为你的真实网址）
+👉 [VisuAlgoX 官方网站](https://visux.ilikexff.cn/) （请替换为你的真实网址）
 
 ---
 
@@ -49,7 +49,7 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 
 ### 2️⃣ 直接在浏览器中使用
 
-无需安装，可直接访问 👉 [VisuAlgoX 在线版](https://yourwebsite.com)
+无需安装，可直接访问 👉 [VisuAlgoX 在线版](https://visux.ilikexff.cn/)
 
 ---
 
