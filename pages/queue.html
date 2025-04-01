@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>队列可视化</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .queue-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .queue-item {
+            width: 50px;
+            height: 50px;
+            line-height: 50px;
+            border: 2px solid #333;
+            margin: 5px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #fff;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.5s ease-in-out;
+        }
+        .queue-item.enqueue {
+            background-color: #4CAF50;
+            transform: scale(1.2);
+        }
+        .queue-item.dequeue {
+            background-color: #FF5733;
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        .operation-log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: center;
+        }
+        .log-item {
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            display: inline-block;
+            width: 90%;
+        }
+    </style>
+</head>
+<body>
+<h1>队列可视化</h1>
+<div class="queue-container" id="queueContainer"></div>
+<div class="controls">
+    <button onclick="enqueue()">入队</button>
+    <button onclick="dequeue()">出队</button>
+    <button onclick="peekFront()">队头元素</button>
+    <button onclick="peekBack()">队尾元素</button>
+    <button onclick="getSize()">队列大小</button>
+    <button onclick="checkEmpty()">是否为空</button>
+    <button onclick="reverseQueue()">翻转队列</button>
+    <button onclick="clearQueue()">清空队列</button>
+</div>
+
+<!-- 操作记录 -->
+<div class="operation-log" id="operationLog">
+    <h3>操作记录:</h3>
+</div>
+
+<script>
+    let queue = [];
+
+    function renderQueue() {
+        const container = document.getElementById("queueContainer");
+        container.innerHTML = "";
+        queue.forEach((value, index) => {
+            const div = document.createElement("div");
+            div.classList.add("queue-item");
+            div.textContent = value;
+            container.appendChild(div);
+        });
+    }
+
+    function logOperation(message) {
+        const operationLog = document.getElementById("operationLog");
+        const logItem = document.createElement("div");
+        logItem.classList.add("log-item");
+        logItem.textContent = message;
+        operationLog.appendChild(logItem);
+        operationLog.scrollTop = operationLog.scrollHeight;
+    }
+
+    function enqueue() {
+        const newValue = Math.floor(Math.random() * 100);
+        queue.push(newValue);
+        renderQueue();
+        animateLastElement("enqueue");
+        logOperation(`入队: ${newValue}`);
+    }
+
+    function dequeue() {
+        if (queue.length > 0) {
+            const removed = queue.shift();
+            renderQueueWithDequeueEffect();
+            logOperation(`出队: ${removed}`);
+        }
+    }
+
+    function renderQueueWithDequeueEffect() {
+        const container = document.getElementById("queueContainer");
+        if (container.children.length > 0) {
+            const firstItem = container.children[0];
+            firstItem.classList.add("dequeue");
+            setTimeout(() => {
+                renderQueue();
+            }, 500);
+        }
+    }
+
+    function peekFront() {
+        if (queue.length > 0) {
+            logOperation(`队头元素: ${queue[0]}`);
+        } else {
+            logOperation("队列为空，无法获取队头元素");
+        }
+    }
+
+    function peekBack() {
+        if (queue.length > 0) {
+            logOperation(`队尾元素: ${queue[queue.length - 1]}`);
+        } else {
+            logOperation("队列为空，无法获取队尾元素");
+        }
+    }
+
+    function getSize() {
+        logOperation(`当前队列大小: ${queue.length}`);
+    }
+
+    function checkEmpty() {
+        logOperation(queue.length === 0 ? "队列为空" : "队列不为空");
+    }
+
+    function reverseQueue() {
+        queue.reverse();
+        renderQueue();
+        logOperation("已翻转队列");
+    }
+
+    function clearQueue() {
+        queue = [];
+        renderQueue();
+        logOperation("已清空队列");
+    }
+
+    function animateLastElement(className) {
+        const items = document.querySelectorAll(".queue-item");
+        if (items.length > 0) {
+            items[items.length - 1].classList.add(className);
+            setTimeout(() => items[items.length - 1].classList.remove(className), 800);
+        }
+    }
+</script>
+</body>
+</html>

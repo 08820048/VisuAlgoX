@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>链表可视化</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .list-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            position: relative;
+        }
+        .list-item {
+            width: 50px;
+            height: 50px;
+            line-height: 50px;
+            border: 2px solid #333;
+            margin: 5px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #fff;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+        .arrow {
+            width: 30px;
+            height: 2px;
+            background-color: #333;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: all 0.5s ease-in-out;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+<h1>链表可视化</h1>
+<div class="list-container" id="listContainer"></div>
+<div class="controls">
+    <button onclick="insert()">插入节点</button>
+    <button onclick="remove()">删除节点</button>
+    <button onclick="reverseList()">反转链表</button>
+    <button onclick="findNode()">查找节点</button>
+    <button onclick="clearList()">清空链表</button>
+</div>
+
+<script>
+    let list = [];
+
+    function renderList() {
+        const container = document.getElementById("listContainer");
+        container.innerHTML = "";
+
+        list.forEach((value, index) => {
+            const node = document.createElement("div");
+            node.classList.add("list-item");
+            node.textContent = value;
+            container.appendChild(node);
+
+            // 添加箭头
+            if (index < list.length - 1) {
+                const arrow = document.createElement("div");
+                arrow.classList.add("arrow");
+                node.appendChild(arrow);
+            }
+        });
+
+        // 更新箭头位置
+        updateArrows();
+    }
+
+    function updateArrows() {
+        const nodes = document.querySelectorAll(".list-item");
+        nodes.forEach((node, index) => {
+            if (index < nodes.length - 1) {
+                const nextNode = nodes[index + 1];
+                const arrow = node.querySelector(".arrow");
+
+                // 计算箭头宽度，使其连接两个节点
+                const nodeRect = node.getBoundingClientRect();
+                const nextNodeRect = nextNode.getBoundingClientRect();
+                const distance = nextNodeRect.left - nodeRect.right;
+
+                arrow.style.width = distance + "px";
+            }
+        });
+    }
+
+    function insert() {
+        const newValue = Math.floor(Math.random() * 100);
+        list.push(newValue);
+        renderList();
+    }
+
+    function remove() {
+        if (list.length > 0) {
+            list.pop();
+            renderList();
+        }
+    }
+
+    function reverseList() {
+        list.reverse();
+        renderList();
+    }
+
+    function findNode() {
+        const nodeValue = prompt("请输入要查找的节点值:");
+        const index = list.indexOf(Number(nodeValue));
+        if (index !== -1) {
+            alert(`找到节点 ${nodeValue}，位置: ${index + 1}`);
+        } else {
+            alert("未找到该节点");
+        }
+    }
+
+    function clearList() {
+        list = [];
+        renderList();
+    }
+
+    renderList();
+</script>
+</body>
+</html>
