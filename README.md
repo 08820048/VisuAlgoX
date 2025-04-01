@@ -6,6 +6,7 @@
 
 VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可视化工具**，帮助用户通过直观的动画理解各种数据结构和算法。
 
+
 ---
 
 ## 🌟 功能特点
@@ -28,19 +29,25 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 
 ## 🖥️ 在线体验
 
-👉 [VisuAlgoX 官方网站](https://visux.ilikexff.cn/) 
+👉 [VisuAlgoX 官方网站](https://visux.ilikexff.cn/)
 
 ---
 
 ## 📸 界面预览
 
-![image-20250401123618075](https://images.waer.ltd/notes/202504011236853.png)
+![index](https://images.waer.ltd/notes/202504011612316.gif)
+
+![tree1](https://images.waer.ltd/notes/202504011619970.gif)
+
+![bezier](https://images.waer.ltd/notes/202504011615364.gif)
+
+![Astar](https://images.waer.ltd/notes/202504011617002.gif)
+
+
 
 ![image-20250401123703670](https://images.waer.ltd/notes/202504011237734.png)
 
-![image-20250401123739901](https://images.waer.ltd/notes/202504011237957.png)
 
-![image-20250401123834355](https://images.waer.ltd/notes/202504011238418.png)
 
 ---
 
@@ -79,4 +86,3 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 ---
 
 ✨ **VisuAlgoX - 让算法更直观，让学习更轻松！** 🚀
-
