@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A* 寻路算法可视化</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #333;
+            font-weight: bold;
+            text-align: center; /* 让文本水平居中 */
+            margin: 0 auto; /* 将外边距设为自动，这样父容器可以水平居中子元素 */
+            width: fit-content; /* 设置宽度自适应内容 */
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .left-panel {
+            width: 300px;
+            padding-right: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(20, 30px);
+            grid-gap: 2px;
+            justify-content: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .grid-cell {
+            width: 30px;
+            height: 30px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .wall {
+            background-color: #333;
+        }
+
+        .start {
+            background-color: #4CAF50;
+        }
+
+        .end {
+            background-color: #FF5733;
+        }
+
+        .path {
+            background-color: #9237e7;
+            transition: background-color 0.3s ease;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background-color: #63abb7;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            white-space: nowrap; /* 不允许文字换行 */
+            width: auto; /* 自动根据文字宽度调整按钮的宽度 */
+            display: inline-block; /* 确保按钮为行内块元素 */
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(1);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .tooltip {
+            font-size: 14px;
+            color: #333;
+            background-color: #f1f1f1;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .tooltip p {
+            margin: 0;
+        }
+
+        .tooltip strong {
+            color: #007BFF;
+        }
+
+        .left-panel .tooltip {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<h1>A* 寻路算法可视化</h1>
+
+<div class="container">
+    <div class="left-panel">
+        <div class="tooltip">
+            <p><strong>操作提示：</strong></p>
+            <p>1. 点击网格设置<span style="color: #4CAF50">起点</span>和<span style="color: red">终点。</span></p>
+            <p>2. 点击网格设置<span style="color: black">障碍物。</span></p>
+            <p>3. 点击“开始 A* 寻路”按钮进行算法计算。</p>
+            <p>4. 点击“清空网格”清空当前设置。</p>
+        </div>
+        <div class="button-container">
+            <button onclick="startAStar()">开始 A* 寻路</button>
+            <button onclick="clearGrid()">清空网格</button>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="grid-container" id="grid"></div>
+    </div>
+</div>
+
+<script>
+    const gridWidth = 20;
+    const gridHeight = 20;
+    let start = null;
+    let end = null;
+    let walls = [];
+
+    function createGrid() {
+        const gridContainer = document.getElementById("grid");
+        for (let y = 0; y < gridHeight; y++) {
+            for (let x = 0; x < gridWidth; x++) {
+                const cell = document.createElement("div");
+                cell.classList.add("grid-cell");
+                cell.dataset.x = x;
+                cell.dataset.y = y;
+                gridContainer.appendChild(cell);
+                cell.addEventListener("click", () => handleCellClick(x, y, cell));
+            }
+        }
+    }
+
+    function handleCellClick(x, y, cell) {
+        if (start === null) {
+            start = { x, y };
+            cell.classList.add("start");
+        } else if (end === null) {
+            end = { x, y };
+            cell.classList.add("end");
+        } else {
+            if (cell.classList.contains("start") || cell.classList.contains("end")) return;
+            if (!walls.some(wall => wall.x === x && wall.y === y)) {
+                cell.classList.add("wall");
+                walls.push({ x, y });
+            }
+        }
+    }
+
+    function clearGrid() {
+        start = null;
+        end = null;
+        walls = [];
+        const cells = document.querySelectorAll(".grid-cell");
+        cells.forEach(cell => {
+            cell.classList.remove("wall", "start", "end", "path");
+        });
+    }
+
+    function startAStar() {
+        if (!start || !end) {
+            alert("请设置起点和终点");
+            return;
+        }
+        const openSet = [];
+        const closedSet = [];
+        const cameFrom = {};
+        const gScore = {};
+        const fScore = {};
+
+        openSet.push(start);
+        gScore[`${start.x},${start.y}`] = 0;
+        fScore[`${start.x},${start.y}`] = heuristic(start, end);
+
+        while (openSet.length > 0) {
+            let current = lowestFScore(openSet, fScore);
+            if (current.x === end.x && current.y === end.y) {
+                reconstructPath(cameFrom, current);
+                return;
+            }
+
+            openSet.splice(openSet.indexOf(current), 1);
+            closedSet.push(current);
+
+            const neighbors = getNeighbors(current);
+            neighbors.forEach(neighbor => {
+                if (closedSet.some(cell => cell.x === neighbor.x && cell.y === neighbor.y)) return;
+                if (walls.some(cell => cell.x === neighbor.x && cell.y === neighbor.y)) return;
+
+                const tentativeGScore = gScore[`${current.x},${current.y}`] + 1;
+
+                if (!openSet.some(cell => cell.x === neighbor.x && cell.y === neighbor.y)) {
+                    openSet.push(neighbor);
+                } else if (tentativeGScore >= gScore[`${neighbor.x},${neighbor.y}`]) {
+                    return;
+                }
+
+                cameFrom[`${neighbor.x},${neighbor.y}`] = current;
+                gScore[`${neighbor.x},${neighbor.y}`] = tentativeGScore;
+                fScore[`${neighbor.x},${neighbor.y}`] = gScore[`${neighbor.x},${neighbor.y}`] + heuristic(neighbor, end);
+            });
+        }
+
+        alert("没有找到路径");
+    }
+
+    function getNeighbors(cell) {
+        const neighbors = [];
+        const directions = [
+            { x: 0, y: 1 },
+            { x: 1, y: 0 },
+            { x: 0, y: -1 },
+            { x: -1, y: 0 }
+        ];
+
+        directions.forEach(direction => {
+            const neighbor = { x: cell.x + direction.x, y: cell.y + direction.y };
+            if (neighbor.x >= 0 && neighbor.x < gridWidth && neighbor.y >= 0 && neighbor.y < gridHeight) {
+                neighbors.push(neighbor);
+            }
+        });
+
+        return neighbors;
+    }
+
+    function heuristic(a, b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    function lowestFScore(openSet, fScore) {
+        return openSet.reduce((best, current) => {
+            if (fScore[`${current.x},${current.y}`] < fScore[`${best.x},${best.y}`]) {
+                return current;
+            }
+            return best;
+        });
+    }
+
+    function reconstructPath(cameFrom, current) {
+        let temp = current;
+        while (cameFrom[`${temp.x},${temp.y}`]) {
+            const prev = cameFrom[`${temp.x},${temp.y}`];
+            const cell = document.querySelector(`[data-x='${prev.x}'][data-y='${prev.y}']`);
+            setTimeout(() => cell.classList.add("path"), 50); // Animating path one step at a time
+            temp = prev;
+        }
+    }
+
+    createGrid();
+</script>
+</body>
+</html>
