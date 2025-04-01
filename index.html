@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisuAlgoX - 让算法不再抽象</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <!-- 添加Font Awesome图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #0096ff;
@@ -36,6 +38,33 @@
             height: 100%;
             z-index: -1;
             opacity: 0.3;
+        }
+
+        /* GitHub图标样式 */
+        .github-link {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            color: var(--primary);
+            font-size: 2.5rem;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            text-decoration: none;
+            background: rgba(15, 22, 33, 0.7);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 150, 255, 0.2);
+        }
+
+        .github-link:hover {
+            color: var(--secondary);
+            transform: scale(1.1) rotate(10deg);
+            box-shadow: 0 0 25px rgba(0, 210, 255, 0.4);
         }
 
         /* 顶部标题 */
@@ -180,6 +209,14 @@
             .intro {
                 font-size: 1rem;
             }
+
+            .github-link {
+                top: 20px;
+                right: 20px;
+                font-size: 2rem;
+                width: 40px;
+                height: 40px;
+            }
         }
 
         /* 科技风装饰元素 */
@@ -218,6 +255,10 @@
 
 <!-- 顶部介绍 -->
 <header class="header">
+    <!-- 添加GitHub图标链接 -->
+    <a href="https://github.com/08820048/VisuAlgoX" class="github-link" target="_blank" title="查看GitHub开源项目">
+        <i class="fab fa-github"></i>
+    </a>
     <h1>VisuAlgoX - 让算法不再抽象</h1>
     <p class="intro">专注于计算机科学和游戏开发等领域的可视化神站，助各位机友直观理解算法、数据结构、数学原理和图形渲染等技术。</p>
 </header>
