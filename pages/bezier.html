@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贝塞尔曲线可视化</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        canvas {
+            background: #fff;
+            border: 1px solid #ccc;
+            display: block;
+            margin: 20px auto;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            font-size: 16px;
+            width: 80px;
+            margin-right: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(45deg, #007BFF, #0056b3);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #0056b3, #003d80);
+            transform: scale(1.05);
+        }
+        .hint {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>贝塞尔曲线可视化</h1>
+    <canvas id="bezierCanvas" width="800" height="500"></canvas>
+    <div class="controls">
+        <label for="pointCount">控制点数量:</label>
+        <input type="number" id="pointCount" min="2" max="10" value="3">
+        <button onclick="generateControlPoints()">生成控制点</button>
+    </div>
+    <div class="hint">提示：鼠标拖动控制点调整曲线</div>
+</div>
+<script>
+    const canvas = document.getElementById("bezierCanvas");
+    const ctx = canvas.getContext("2d");
+    let controlPoints = [];
+    let draggingPoint = null;
+
+    function generateControlPoints() {
+        const pointCount = parseInt(document.getElementById("pointCount").value);
+        controlPoints = [];
+        for (let i = 0; i < pointCount; i++) {
+            controlPoints.push({
+                x: 100 + i * (canvas.width - 200) / (pointCount - 1),
+                y: canvas.height / 2 + (Math.random() * 100 - 50)
+            });
+        }
+        draw();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#007BFF";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(controlPoints[0].x, controlPoints[0].y);
+        for (let t = 0; t <= 1; t += 0.01) {
+            const p = bezier(controlPoints, t);
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = "#33ff5c";
+        for (let p of controlPoints) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function bezier(points, t) {
+        let temp = points.map(p => ({ ...p }));
+        for (let r = 1; r < temp.length; r++) {
+            for (let i = 0; i < temp.length - r; i++) {
+                temp[i].x = (1 - t) * temp[i].x + t * temp[i + 1].x;
+                temp[i].y = (1 - t) * temp[i].y + t * temp[i + 1].y;
+            }
+        }
+        return temp[0];
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        for (let p of controlPoints) {
+            if (Math.hypot(p.x - mouseX, p.y - mouseY) < 10) {
+                draggingPoint = p;
+                break;
+            }
+        }
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        if (!draggingPoint) return;
+        const rect = canvas.getBoundingClientRect();
+        draggingPoint.x = Math.min(canvas.width - 10, Math.max(10, e.clientX - rect.left));
+        draggingPoint.y = Math.min(canvas.height - 10, Math.max(10, e.clientY - rect.top));
+        draw();
+    });
+
+    canvas.addEventListener("mouseup", () => draggingPoint = null);
+    generateControlPoints();
+</script>
+</body>
+</html>
