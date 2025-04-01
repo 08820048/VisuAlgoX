@@ -3,306 +3,549 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A* 寻路算法可视化</title>
+    <title>3D A*寻路算法可视化</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
             margin: 0;
-            background-color: #f4f4f4;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 300px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
             display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            height: 100vh;
-            flex-direction: column;
-        }
-
-        h1 {
-            font-size: 32px;
-            color: #333;
-            font-weight: bold;
-            text-align: center; /* 让文本水平居中 */
-            margin: 0 auto; /* 将外边距设为自动，这样父容器可以水平居中子元素 */
-            width: fit-content; /* 设置宽度自适应内容 */
-        }
-
-        .container {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            width: 100%;
-            padding: 20px;
-        }
-
-        .left-panel {
-            width: 300px;
-            padding-right: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-        }
-
-        .right-panel {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(20, 30px);
-            grid-gap: 2px;
-            justify-content: center;
-            margin-top: 20px;
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        .grid-cell {
-            width: 30px;
-            height: 30px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .wall {
-            background-color: #333;
-        }
-
-        .start {
-            background-color: #4CAF50;
-        }
-
-        .end {
-            background-color: #FF5733;
-        }
-
-        .path {
-            background-color: #9237e7;
-            transition: background-color 0.3s ease;
-        }
-
-        .controls {
-            margin-top: 20px;
+            gap: 10px;
+            z-index: 100;
         }
 
         button {
-            padding: 12px 24px;
-            margin: 10px;
-            border: none;
-            border-radius: 8px;
-            background-color: #63abb7;
+            background: #4CAF50;
             color: white;
-            font-size: 18px;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            white-space: nowrap; /* 不允许文字换行 */
-            width: auto; /* 自动根据文字宽度调整按钮的宽度 */
-            display: inline-block; /* 确保按钮为行内块元素 */
+            transition: background 0.3s;
         }
 
         button:hover {
-            background-color: #0056b3;
-            transform: scale(1.05);
+            background: #45a049;
         }
 
-        button:active {
-            transform: scale(1);
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
         }
 
-        .button-container {
+        #legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+
+        .legend-item {
             display: flex;
-            justify-content: center;
-            margin-top: 20px;
+            align-items: center;
+            margin: 5px 0;
         }
 
-        .tooltip {
-            font-size: 14px;
-            color: #333;
-            background-color: #f1f1f1;
-            padding: 12px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 8px;
+            border: 1px solid #555;
         }
 
-        .tooltip p {
-            margin: 0;
-        }
-
-        .tooltip strong {
-            color: #007BFF;
-        }
-
-        .left-panel .tooltip {
+        #instructions {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 300px;
             text-align: left;
+        }
+
+        #instructions h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+
+        #instructions ol {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        #instructions li {
+            margin-bottom: 8px;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
-<h1>A* 寻路算法可视化</h1>
+<div id="info">3D A*寻路算法可视化 - 点击网格设置起点、终点和障碍</div>
 
-<div class="container">
-    <div class="left-panel">
-        <div class="tooltip">
-            <p><strong>操作提示：</strong></p>
-            <p>1. 点击网格设置<span style="color: #4CAF50">起点</span>和<span style="color: red">终点。</span></p>
-            <p>2. 点击网格设置<span style="color: black">障碍物。</span></p>
-            <p>3. 点击“开始 A* 寻路”按钮进行算法计算。</p>
-            <p>4. 点击“清空网格”清空当前设置。</p>
-        </div>
-        <div class="button-container">
-            <button onclick="startAStar()">开始 A* 寻路</button>
-            <button onclick="clearGrid()">清空网格</button>
-        </div>
+<div id="instructions">
+    <h3>使用说明</h3>
+    <ol>
+        <li>点击网格中的方块设置<span style="color: #4CAF50">起点</span>（绿色）</li>
+        <li>点击另一个方块设置<span style="color: #FF5733">终点</span>（红色）</li>
+        <li>点击其他方块设置<span style="color: #555">障碍</span>（灰色）</li>
+        <li>点击"开始寻路"按钮运行A*算法</li>
+        <li>蓝色方块表示算法探索过程</li>
+        <li>紫色方块显示最终找到的路径</li>
+        <li>使用鼠标右键旋转视角</li>
+        <li>使用鼠标滚轮缩放场景</li>
+    </ol>
+</div>
+
+<div id="controls">
+    <button id="startBtn" disabled>开始寻路</button>
+    <button id="resetBtn">重置场景</button>
+    <button id="randomBtn">随机障碍</button>
+</div>
+
+<div id="legend">
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4CAF50;"></div>
+        <span>起点</span>
     </div>
-
-    <div class="right-panel">
-        <div class="grid-container" id="grid"></div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF5733;"></div>
+        <span>终点</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #555;"></div>
+        <span>障碍</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #3498db;"></div>
+        <span>已探索</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #9237e7;"></div>
+        <span>路径</span>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 <script>
-    const gridWidth = 20;
-    const gridHeight = 20;
-    let start = null;
-    let end = null;
-    let walls = [];
+    // 场景设置
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
 
-    function createGrid() {
-        const gridContainer = document.getElementById("grid");
-        for (let y = 0; y < gridHeight; y++) {
-            for (let x = 0; x < gridWidth; x++) {
-                const cell = document.createElement("div");
-                cell.classList.add("grid-cell");
-                cell.dataset.x = x;
-                cell.dataset.y = y;
-                gridContainer.appendChild(cell);
-                cell.addEventListener("click", () => handleCellClick(x, y, cell));
+    // 相机设置
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(15, 20, 15);
+    camera.lookAt(0, 0, 0);
+
+    // 渲染器设置
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 控制器设置
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 灯光设置
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 20, 10);
+    scene.add(directionalLight);
+
+    // 网格参数
+    const gridSize = 10;
+    const cellSize = 1;
+    const halfSize = gridSize / 2;
+
+    // 创建网格地面
+    const gridHelper = new THREE.GridHelper(gridSize, gridSize);
+    scene.add(gridHelper);
+
+    // 存储所有立方体
+    const cubes = [];
+    const gridData = [];
+
+    // 初始化网格
+    function initGrid() {
+        // 清除现有立方体
+        cubes.forEach(cube => scene.remove(cube));
+        cubes.length = 0;
+        gridData.length = 0;
+
+        // 创建新的网格数据
+        for (let z = 0; z < gridSize; z++) {
+            gridData[z] = [];
+            for (let x = 0; x < gridSize; x++) {
+                gridData[z][x] = 0; // 0 = 空, 1 = 障碍, 2 = 起点, 3 = 终点
+
+                const geometry = new THREE.BoxGeometry(cellSize * 0.9, 0.1, cellSize * 0.9);
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.x = (x - halfSize) * cellSize + cellSize / 2;
+                cube.position.z = (z - halfSize) * cellSize + cellSize / 2;
+                cube.position.y = 0;
+
+                cube.userData = { x, z };
+                cube.castShadow = true;
+                cube.receiveShadow = true;
+
+                scene.add(cube);
+                cubes.push(cube);
+            }
+        }
+
+        // 重置起点终点
+        startNode = null;
+        endNode = null;
+        document.getElementById('startBtn').disabled = true;
+        updateInfo("点击网格设置起点");
+    }
+
+    // 更新信息显示
+    function updateInfo(message) {
+        document.getElementById('info').textContent = message;
+    }
+
+    // 鼠标点击处理
+    function onMouseClick(event) {
+        if (isSearching) return;
+
+        const mouse = new THREE.Vector2(
+            (event.clientX / window.innerWidth) * 2 - 1,
+            -(event.clientY / window.innerHeight) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObjects(cubes);
+
+        if (intersects.length > 0) {
+            const clickedCube = intersects[0].object;
+            const x = clickedCube.userData.x;
+            const z = clickedCube.userData.z;
+
+            // 如果点击的是障碍物且不是起点或终点，则清除
+            if (gridData[z][x] === 1) {
+                setCell(x, z, 0);
+                return;
+            }
+
+            // 设置起点或终点
+            if (startNode === null) {
+                startNode = { x, z };
+                setCell(x, z, 2);
+                updateInfo(`起点设置于 (${x}, ${z}) - 点击设置终点`);
+            }
+            else if (endNode === null && !(startNode.x === x && startNode.z === z)) {
+                endNode = { x, z };
+                setCell(x, z, 3);
+                updateInfo(`终点设置于 (${x}, ${z}) - 可以设置障碍或开始寻路`);
+                document.getElementById('startBtn').disabled = false;
+            }
+            else {
+                // 设置障碍
+                if (!(startNode.x === x && startNode.z === z) &&
+                    !(endNode.x === x && endNode.z === z)) {
+                    setCell(x, z, 1);
+                }
             }
         }
     }
 
-    function handleCellClick(x, y, cell) {
-        if (start === null) {
-            start = { x, y };
-            cell.classList.add("start");
-        } else if (end === null) {
-            end = { x, y };
-            cell.classList.add("end");
-        } else {
-            if (cell.classList.contains("start") || cell.classList.contains("end")) return;
-            if (!walls.some(wall => wall.x === x && wall.y === y)) {
-                cell.classList.add("wall");
-                walls.push({ x, y });
-            }
+    // 设置单元格状态
+    function setCell(x, z, state) {
+        gridData[z][x] = state;
+
+        const index = z * gridSize + x;
+        const cube = cubes[index];
+
+        let color, height;
+
+        switch(state) {
+            case 0: // 空
+                color = 0xffffff;
+                height = 0.1;
+                break;
+            case 1: // 障碍
+                color = 0x555555;
+                height = 1;
+                break;
+            case 2: // 起点
+                color = 0x4CAF50;
+                height = 1;
+                break;
+            case 3: // 终点
+                color = 0xFF5733;
+                height = 1;
+                break;
+            case 4: // 已探索
+                color = 0x3498db;
+                height = 0.8;
+                break;
+            case 5: // 路径
+                color = 0x9237e7;
+                height = 0.6;
+                break;
         }
+
+        // 创建新几何体以改变高度
+        cube.geometry.dispose();
+        cube.geometry = new THREE.BoxGeometry(
+            cellSize * 0.9,
+            height,
+            cellSize * 0.9
+        );
+
+        cube.material.color.setHex(color);
+        cube.position.y = height / 2;
     }
 
-    function clearGrid() {
-        start = null;
-        end = null;
-        walls = [];
-        const cells = document.querySelectorAll(".grid-cell");
-        cells.forEach(cell => {
-            cell.classList.remove("wall", "start", "end", "path");
-        });
-    }
+    // A*算法实现
+    let isSearching = false;
+    let startNode = null;
+    let endNode = null;
 
-    function startAStar() {
-        if (!start || !end) {
-            alert("请设置起点和终点");
+    async function startAStar() {
+        if (!startNode || !endNode) {
+            updateInfo("请先设置起点和终点");
             return;
         }
-        const openSet = [];
+
+        isSearching = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('resetBtn').disabled = true;
+        document.getElementById('randomBtn').disabled = true;
+
+        updateInfo("正在寻找路径...");
+
+        // 清除之前的搜索痕迹
+        for (let z = 0; z < gridSize; z++) {
+            for (let x = 0; x < gridSize; x++) {
+                if (gridData[z][x] === 4 || gridData[z][x] === 5) {
+                    setCell(x, z, 0);
+                }
+            }
+        }
+
+        const openSet = [startNode];
         const closedSet = [];
         const cameFrom = {};
         const gScore = {};
         const fScore = {};
 
-        openSet.push(start);
-        gScore[`${start.x},${start.y}`] = 0;
-        fScore[`${start.x},${start.y}`] = heuristic(start, end);
+        // 初始化分数
+        for (let z = 0; z < gridSize; z++) {
+            for (let x = 0; x < gridSize; x++) {
+                gScore[`${x},${z}`] = Infinity;
+                fScore[`${x},${z}`] = Infinity;
+            }
+        }
 
-        while (openSet.length > 0) {
-            let current = lowestFScore(openSet, fScore);
-            if (current.x === end.x && current.y === end.y) {
-                reconstructPath(cameFrom, current);
+        gScore[`${startNode.x},${startNode.z}`] = 0;
+        fScore[`${startNode.x},${startNode.z}`] = heuristic(startNode, endNode);
+
+        while (openSet.length > 0 && isSearching) {
+            // 找到f值最小的节点
+            let current = openSet[0];
+            let currentIndex = 0;
+
+            for (let i = 1; i < openSet.length; i++) {
+                if (fScore[`${openSet[i].x},${openSet[i].z}`] < fScore[`${current.x},${current.z}`]) {
+                    current = openSet[i];
+                    currentIndex = i;
+                }
+            }
+
+            // 检查是否到达终点
+            if (current.x === endNode.x && current.z === endNode.z) {
+                await reconstructPath(cameFrom, current);
+                isSearching = false;
+                updateInfo("找到路径!");
+                document.getElementById('resetBtn').disabled = false;
+                document.getElementById('randomBtn').disabled = false;
                 return;
             }
 
-            openSet.splice(openSet.indexOf(current), 1);
+            // 从开放列表移动到关闭列表
+            openSet.splice(currentIndex, 1);
             closedSet.push(current);
 
+            // 如果不是起点或终点，标记为已访问
+            if (!(current.x === startNode.x && current.z === startNode.z) &&
+                !(current.x === endNode.x && current.z === endNode.z)) {
+                setCell(current.x, current.z, 4);
+                await sleep(50); // 添加延迟以便观察搜索过程
+            }
+
+            // 检查邻居
             const neighbors = getNeighbors(current);
-            neighbors.forEach(neighbor => {
-                if (closedSet.some(cell => cell.x === neighbor.x && cell.y === neighbor.y)) return;
-                if (walls.some(cell => cell.x === neighbor.x && cell.y === neighbor.y)) return;
-
-                const tentativeGScore = gScore[`${current.x},${current.y}`] + 1;
-
-                if (!openSet.some(cell => cell.x === neighbor.x && cell.y === neighbor.y)) {
-                    openSet.push(neighbor);
-                } else if (tentativeGScore >= gScore[`${neighbor.x},${neighbor.y}`]) {
-                    return;
+            for (const neighbor of neighbors) {
+                // 跳过墙壁和已关闭的节点
+                if (closedSet.some(node => node.x === neighbor.x && node.z === neighbor.z) ||
+                    gridData[neighbor.z][neighbor.x] === 1) {
+                    continue;
                 }
 
-                cameFrom[`${neighbor.x},${neighbor.y}`] = current;
-                gScore[`${neighbor.x},${neighbor.y}`] = tentativeGScore;
-                fScore[`${neighbor.x},${neighbor.y}`] = gScore[`${neighbor.x},${neighbor.y}`] + heuristic(neighbor, end);
-            });
+                const tentativeGScore = gScore[`${current.x},${current.z}`] + 1;
+
+                if (!openSet.some(node => node.x === neighbor.x && node.z === neighbor.z)) {
+                    openSet.push(neighbor);
+                } else if (tentativeGScore >= gScore[`${neighbor.x},${neighbor.z}`]) {
+                    continue;
+                }
+
+                cameFrom[`${neighbor.x},${neighbor.z}`] = current;
+                gScore[`${neighbor.x},${neighbor.z}`] = tentativeGScore;
+                fScore[`${neighbor.x},${neighbor.z}`] = gScore[`${neighbor.x},${neighbor.z}`] + heuristic(neighbor, endNode);
+            }
         }
 
-        alert("没有找到路径");
+        if (isSearching) {
+            updateInfo("找不到路径!");
+            isSearching = false;
+            document.getElementById('resetBtn').disabled = false;
+            document.getElementById('randomBtn').disabled = false;
+        }
     }
 
-    function getNeighbors(cell) {
+    // 获取邻居节点
+    function getNeighbors(node) {
         const neighbors = [];
         const directions = [
-            { x: 0, y: 1 },
-            { x: 1, y: 0 },
-            { x: 0, y: -1 },
-            { x: -1, y: 0 }
+            { dx: 0, dz: 1 }, { dx: 1, dz: 0 },
+            { dx: 0, dz: -1 }, { dx: -1, dz: 0 }
         ];
 
-        directions.forEach(direction => {
-            const neighbor = { x: cell.x + direction.x, y: cell.y + direction.y };
-            if (neighbor.x >= 0 && neighbor.x < gridWidth && neighbor.y >= 0 && neighbor.y < gridHeight) {
-                neighbors.push(neighbor);
+        for (const dir of directions) {
+            const x = node.x + dir.dx;
+            const z = node.z + dir.dz;
+
+            if (x >= 0 && x < gridSize && z >= 0 && z < gridSize) {
+                neighbors.push({ x, z });
             }
-        });
+        }
 
         return neighbors;
     }
 
+    // 启发式函数（曼哈顿距离）
     function heuristic(a, b) {
-        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        return Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
     }
 
-    function lowestFScore(openSet, fScore) {
-        return openSet.reduce((best, current) => {
-            if (fScore[`${current.x},${current.y}`] < fScore[`${best.x},${best.y}`]) {
-                return current;
-            }
-            return best;
-        });
-    }
+    // 重建路径
+    async function reconstructPath(cameFrom, current) {
+        const path = [];
+        while (cameFrom[`${current.x},${current.z}`]) {
+            path.push(current);
+            current = cameFrom[`${current.x},${current.z}`];
+        }
 
-    function reconstructPath(cameFrom, current) {
-        let temp = current;
-        while (cameFrom[`${temp.x},${temp.y}`]) {
-            const prev = cameFrom[`${temp.x},${temp.y}`];
-            const cell = document.querySelector(`[data-x='${prev.x}'][data-y='${prev.y}']`);
-            setTimeout(() => cell.classList.add("path"), 50); // Animating path one step at a time
-            temp = prev;
+        // 反向绘制路径
+        for (let i = path.length - 1; i >= 0; i--) {
+            const node = path[i];
+            setCell(node.x, node.z, 5);
+            await sleep(100); // 添加路径动画效果
         }
     }
 
-    createGrid();
+    // 随机生成障碍
+    function generateRandomObstacles() {
+        if (isSearching) return;
+
+        // 保留起点和终点
+        const startX = startNode ? startNode.x : -1;
+        const startZ = startNode ? startNode.z : -1;
+        const endX = endNode ? endNode.x : -1;
+        const endZ = endNode ? endNode.z : -1;
+
+        // 随机生成障碍（约30%的单元格）
+        for (let z = 0; z < gridSize; z++) {
+            for (let x = 0; x < gridSize; x++) {
+                if ((x === startX && z === startZ) || (x === endX && z === endZ)) {
+                    continue;
+                }
+
+                if (Math.random() < 0.3) {
+                    setCell(x, z, 1);
+                } else {
+                    setCell(x, z, 0);
+                }
+            }
+        }
+
+        updateInfo("已随机生成障碍");
+    }
+
+    // 辅助函数
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 窗口大小调整
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // 初始化
+    initGrid();
+    animate();
+
+    // 事件监听
+    window.addEventListener('resize', onWindowResize);
+    renderer.domElement.addEventListener('click', onMouseClick);
+    document.getElementById('startBtn').addEventListener('click', startAStar);
+    document.getElementById('resetBtn').addEventListener('click', initGrid);
+    document.getElementById('randomBtn').addEventListener('click', generateRandomObstacles);
 </script>
 </body>
 </html>
