@@ -1,312 +1,480 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数组可视化</title>
+    <title>数组可视化工具 - 完整版</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
-            background-color: #f4f4f4;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f5f5f5;
         }
         .array-container {
             display: flex;
             justify-content: center;
-            margin-top: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            max-width: 90%;
         }
-        .array-item {
+        .array-element {
             width: 50px;
             height: 50px;
-            line-height: 50px;
-            border: 2px solid #333;
-            margin: 5px;
-            text-align: center;
-            font-weight: bold;
-            background-color: #fff;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .array-item.added {
             background-color: #4CAF50;
-            transform: scale(1.15);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .array-item.modified {
-            background-color: #FFA500;
+        .highlight {
+            background-color: #f39c12;
             transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(243, 156, 18, 0.6);
         }
-        .array-item.found {
-            background-color: #FFD700;
-            animation: pulse 0.8s infinite alternate;
+        .found {
+            background-color: #e74c3c;
+            animation: pulse 1s;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.6);
         }
         @keyframes pulse {
-            from { transform: scale(1); }
-            to { transform: scale(1.2); }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
         }
         .controls {
-            margin-top: 20px;
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
         }
         button {
-            padding: 10px 20px;
-            margin: 5px;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
             border: none;
             border-radius: 5px;
-            background-color: #007BFF;
-            color: white;
-            font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         button:hover {
-            background-color: #0056b3;
-            transform: scale(1.05);
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
-
-        .operation-log {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            max-height: 200px;
-            overflow-y: auto;
-            text-align: center; /* 让文本居中 */
-        }
-
-        .log-item {
-            margin-bottom: 10px;
-            padding: 5px;
-            background-color: #f1f1f1;
-            border-radius: 5px;
-            display: inline-block; /* 让日志文本块居中 */
-            text-align: center;
-            width: 90%; /* 调整宽度，使其在容器内居中 */
-        }
-        /* 弹窗样式 */
-        #modal {
-            display: none;
+        .dialog {
             position: fixed;
-            top: 50%;
+            top: 20%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 20px;
+            transform: translateX(-50%);
+            background: white;
+            padding: 25px;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        #modal p {
-            margin: 0;
-            font-size: 18px;
-        }
-        #modal button {
-            margin-top: 10px;
-            background-color: #FF5733;
-        }
-        /* 输入查找元素的弹窗样式 */
-        #inputModal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #fff;
-            color: #333;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 100;
             width: 300px;
             text-align: center;
         }
-        #inputModal input {
-            width: 80%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-            margin-top: 10px;
+        .dialog h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
         }
-        #inputModal button {
-            width: 80%;
-            padding: 10px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            margin-top: 10px;
+        .dialog-input-group {
+            margin: 15px 0;
+            text-align: left;
         }
-        #overlay {
-            display: none;
+        .dialog-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .dialog input {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border 0.3s;
+        }
+        .dialog input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .dialog-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .dialog-buttons button {
+            flex: 1;
+            padding: 8px 0;
+        }
+        .dialog-buttons button:first-child {
+            background-color: #2ecc71;
+        }
+        .dialog-buttons button:first-child:hover {
+            background-color: #27ae60;
+        }
+        .dialog-buttons button:last-child {
+            background-color: #e74c3c;
+        }
+        .dialog-buttons button:last-child:hover {
+            background-color: #c0392b;
+        }
+        .overlay {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+            backdrop-filter: blur(3px);
+        }
+        .history-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-title {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .history-item {
+            padding: 8px 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .history-create {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+        .history-insert {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1565c0;
+        }
+        .history-delete {
+            background-color: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        .history-search {
+            background-color: #fff8e1;
+            color: #f57f17;
+            border-left: 4px solid #f57f17;
+        }
+        .history-update {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+            border-left: 4px solid #7b1fa2;
+        }
+        .empty-history {
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
         }
     </style>
 </head>
 <body>
-<h1>数组可视化</h1>
-<div class="array-container" id="arrayContainer"></div>
+<h1 style="color: #2c3e50;">数组可视化工具</h1>
 <div class="controls">
-    <button onclick="addElement()">添加元素</button>
-    <button onclick="insertElement()">插入元素</button>
-    <button onclick="removeElement()">删除元素</button>
-    <button onclick="modifyElement()">修改元素</button>
-    <button onclick="findElement()">查找元素</button>
-    <button onclick="clearArray()">清空数组</button>
+    <button onclick="showDialog('create')">创建数组</button>
+    <button onclick="showDialog('insert')">插入元素</button>
+    <button onclick="showDialog('delete')">删除元素</button>
+    <button onclick="showDialog('search')">查找元素</button>
+    <button onclick="showDialog('update')">更新元素</button>
 </div>
 
-<!-- 操作记录 -->
-<div class="operation-log" id="operationLog">
-    <h3>操作记录:</h3>
+<div class="array-container" id="arrayContainer">
+    <!-- 数组元素将在这里动态生成 -->
 </div>
 
-<!-- 输入查找元素的弹窗 -->
-<div id="inputModal">
-    <input type="text" id="searchInput" placeholder="请输入查找元素..." />
-    <button onclick="searchElement()">查找</button>
+<div class="history-container">
+    <div class="history-title">操作记录</div>
+    <ul class="history-list" id="historyList">
+        <li class="empty-history">暂无操作记录</li>
+    </ul>
 </div>
 
-<!-- 结果展示弹窗 -->
-<div id="overlay"></div>
-<div id="modal">
-    <p id="modalMessage"></p>
-    <button onclick="closeModal()">关闭</button>
+<div id="dialogOverlay" class="overlay" style="display: none;"></div>
+<div id="dialog" class="dialog" style="display: none;">
+    <h3 id="dialogTitle">对话框标题</h3>
+    <div class="dialog-input-group">
+        <label for="dialogInput">输入值</label>
+        <input type="text" id="dialogInput" placeholder="请输入值">
+    </div>
+    <div class="dialog-input-group" id="indexInputGroup" style="display: none;">
+        <label for="dialogIndex">索引位置</label>
+        <input type="number" id="dialogIndex" placeholder="0-based索引">
+    </div>
+    <div class="dialog-buttons">
+        <button onclick="handleDialogConfirm()">确认</button>
+        <button onclick="hideDialog()">取消</button>
+    </div>
 </div>
 
 <script>
     let array = [];
+    let currentAction = '';
+    let operationHistory = [];
+
+    function showDialog(action) {
+        currentAction = action;
+        const dialog = document.getElementById('dialog');
+        const dialogTitle = document.getElementById('dialogTitle');
+        const dialogInput = document.getElementById('dialogInput');
+        const indexInputGroup = document.getElementById('indexInputGroup');
+
+        switch(action) {
+            case 'create':
+                dialogTitle.textContent = '创建新数组';
+                dialogInput.placeholder = '例如: 1,2,3,4,5';
+                document.querySelector('label[for="dialogInput"]').textContent = '数组元素(逗号分隔)';
+                indexInputGroup.style.display = 'none';
+                break;
+            case 'insert':
+                dialogTitle.textContent = '插入元素';
+                dialogInput.placeholder = '例如: 42';
+                document.querySelector('label[for="dialogInput"]').textContent = '要插入的值';
+                indexInputGroup.style.display = 'block';
+                break;
+            case 'delete':
+                dialogTitle.textContent = '删除元素';
+                dialogInput.placeholder = '例如: 3';
+                document.querySelector('label[for="dialogInput"]').textContent = '要删除的值';
+                indexInputGroup.style.display = 'none';
+                break;
+            case 'search':
+                dialogTitle.textContent = '查找元素';
+                dialogInput.placeholder = '例如: 5';
+                document.querySelector('label[for="dialogInput"]').textContent = '要查找的值';
+                indexInputGroup.style.display = 'none';
+                break;
+            case 'update':
+                dialogTitle.textContent = '更新元素';
+                dialogInput.placeholder = '例如: 99';
+                document.querySelector('label[for="dialogInput"]').textContent = '新值';
+                indexInputGroup.style.display = 'block';
+                break;
+        }
+
+        document.getElementById('dialogOverlay').style.display = 'block';
+        dialog.style.display = 'block';
+        dialogInput.focus();
+    }
+
+    function hideDialog() {
+        document.getElementById('dialogOverlay').style.display = 'none';
+        document.getElementById('dialog').style.display = 'none';
+    }
+
+    function handleDialogConfirm() {
+        const inputValue = document.getElementById('dialogInput').value;
+        const indexValue = document.getElementById('dialogIndex').value;
+        let operationText = '';
+
+        switch(currentAction) {
+            case 'create':
+                if (!inputValue.trim()) {
+                    alert('请输入有效的数组元素');
+                    return;
+                }
+                array = inputValue.split(',').map(item => item.trim());
+                renderArray();
+                operationText = `创建数组: [${array.join(', ')}]`;
+                addHistory(operationText, 'create');
+                break;
+
+            case 'insert':
+                if (!inputValue.trim()) {
+                    alert('请输入要插入的值');
+                    return;
+                }
+                if (indexValue === '') {
+                    alert('请输入有效的位置');
+                    return;
+                }
+                const insertIndex = parseInt(indexValue);
+                if (insertIndex < 0 || insertIndex > array.length) {
+                    alert('位置超出范围');
+                    return;
+                }
+                array.splice(insertIndex, 0, inputValue);
+                renderArray();
+                highlightElement(insertIndex);
+                operationText = `在位置 ${insertIndex} 插入元素: ${inputValue}`;
+                addHistory(operationText, 'insert');
+                break;
+
+            case 'delete':
+                if (!inputValue.trim()) {
+                    alert('请输入要删除的值');
+                    return;
+                }
+                const deleteIndex = array.findIndex(item => item.toString() === inputValue.toString());
+                if (deleteIndex === -1) {
+                    alert('未找到该元素');
+                    return;
+                }
+                const deletedValue = array[deleteIndex];
+                array.splice(deleteIndex, 1);
+                renderArray();
+                operationText = `删除元素: ${deletedValue} (位置: ${deleteIndex})`;
+                addHistory(operationText, 'delete');
+                break;
+
+            case 'search':
+                if (!inputValue.trim()) {
+                    alert('请输入要查找的值');
+                    return;
+                }
+                const searchIndex = array.findIndex(item => item.toString() === inputValue.toString());
+                if (searchIndex === -1) {
+                    alert('未找到该元素');
+                    operationText = `查找元素: ${inputValue} (未找到)`;
+                } else {
+                    renderArray();
+                    highlightFoundElement(searchIndex);
+                    operationText = `查找元素: ${inputValue} (位置: ${searchIndex})`;
+                }
+                addHistory(operationText, 'search');
+                break;
+
+            case 'update':
+                if (!inputValue.trim()) {
+                    alert('请输入新值');
+                    return;
+                }
+                if (indexValue === '') {
+                    alert('请输入有效的位置');
+                    return;
+                }
+                const updateIndex = parseInt(indexValue);
+                if (updateIndex < 0 || updateIndex >= array.length) {
+                    alert('位置超出范围');
+                    return;
+                }
+                const oldValue = array[updateIndex];
+                array[updateIndex] = inputValue;
+                renderArray();
+                highlightElement(updateIndex);
+                operationText = `更新位置 ${updateIndex}: ${oldValue} → ${inputValue}`;
+                addHistory(operationText, 'update');
+                break;
+        }
+
+        hideDialog();
+    }
 
     function renderArray() {
-        const container = document.getElementById("arrayContainer");
-        container.innerHTML = "";
+        const container = document.getElementById('arrayContainer');
+        container.innerHTML = '';
+
+        if (array.length === 0) {
+            container.innerHTML = '<p style="color:#7f8c8d;">数组为空，请先创建数组</p>';
+            return;
+        }
+
         array.forEach((value, index) => {
-            const div = document.createElement("div");
-            div.classList.add("array-item");
-            div.textContent = value;
-            container.appendChild(div);
+            const element = document.createElement('div');
+            element.className = 'array-element';
+            element.textContent = value;
+            element.title = `索引: ${index}, 值: ${value}`;
+            container.appendChild(element);
         });
     }
 
-    function logOperation(message) {
-        const operationLog = document.getElementById("operationLog");
-        const logItem = document.createElement("div");
-        logItem.classList.add("log-item");
-        logItem.textContent = message;
-        operationLog.appendChild(logItem);
-        operationLog.scrollTop = operationLog.scrollHeight; // 滚动到最新操作
-    }
-
-    function addElement() {
-        const newValue = Math.floor(Math.random() * 100);
-        array.push(newValue);
-        renderArray();
-        animateLastElement("added");
-        logOperation(`已添加元素: ${newValue}`);
-    }
-
-    function insertElement() {
-        if (array.length === 0) return addElement();
-        const index = Math.floor(Math.random() * (array.length + 1));
-        const newValue = Math.floor(Math.random() * 100);
-        array.splice(index, 0, newValue);
-        renderArray();
-        animateElement(index, "added");
-        logOperation(`已在索引 ${index} 处插入元素: ${newValue}`);
-    }
-
-    function removeElement() {
-        if (array.length > 0) {
-            const removed = array.pop();
-            renderArray();
-            logOperation(`已删除元素: ${removed}`);
-        }
-    }
-
-    function modifyElement() {
-        if (array.length > 0) {
-            const index = Math.floor(Math.random() * array.length);
-            const newValue = Math.floor(Math.random() * 100);
-            array[index] = newValue;
-            renderArray();
-            animateElement(index, "modified");
-            logOperation(`已修改索引 ${index} 处的元素为: ${newValue}`);
-        }
-    }
-
-    function findElement() {
-        const inputModal = document.getElementById("inputModal");
-        const overlay = document.getElementById("overlay");
-        inputModal.style.display = "block";
-        overlay.style.display = "block";
-    }
-
-    function searchElement() {
-        const target = document.getElementById("searchInput").value;
-        if (target !== "") {
-            const index = array.indexOf(Number(target));
-            if (index !== -1) {
-                showModal(`找到 ${target}，索引: ${index}`);
-                animateElement(index, "found");
-                logOperation(`查找元素: ${target} - 找到，索引: ${index}`);
-            } else {
-                showModal(`未找到 ${target}`);
-                logOperation(`查找元素: ${target} - 未找到`);
+    function highlightElement(index) {
+        const elements = document.querySelectorAll('.array-element');
+        elements.forEach((el, i) => {
+            if (i === index) {
+                el.classList.add('highlight');
+                setTimeout(() => {
+                    el.classList.remove('highlight');
+                }, 1000);
             }
+        });
+    }
+
+    function highlightFoundElement(index) {
+        const elements = document.querySelectorAll('.array-element');
+        elements.forEach((el, i) => {
+            if (i === index) {
+                el.classList.add('found');
+                setTimeout(() => {
+                    el.classList.remove('found');
+                }, 1000);
+            }
+        });
+    }
+
+    function addHistory(text, type) {
+        const timestamp = new Date().toLocaleTimeString();
+        const fullText = `[${timestamp}] ${text}`;
+
+        operationHistory.unshift({
+            text: fullText,
+            type: type
+        });
+
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+
+        if (operationHistory.length === 0) {
+            historyList.innerHTML = '<li class="empty-history">暂无操作记录</li>';
+            return;
         }
-        closeInputModal();
-    }
 
-    function clearArray() {
-        array = [];
-        renderArray();
-        logOperation(`已清空数组`);
-    }
+        historyList.innerHTML = '';
 
-    function animateLastElement(className) {
-        const items = document.querySelectorAll(".array-item");
-        if (items.length > 0) {
-            items[items.length - 1].classList.add(className);
-            setTimeout(() => items[items.length - 1].classList.remove(className), 800);
-        }
-    }
-
-    function animateElement(index, className) {
-        const items = document.querySelectorAll(".array-item");
-        if (items[index]) {
-            items[index].classList.add(className);
-            setTimeout(() => items[index].classList.remove(className), 800);
-        }
-    }
-
-    function showModal(message) {
-        const modal = document.getElementById("modal");
-        const overlay = document.getElementById("overlay");
-        document.getElementById("modalMessage").textContent = message;
-        modal.style.display = "block";
-        overlay.style.display = "block";
-    }
-
-    function closeModal() {
-        const modal = document.getElementById("modal");
-        const overlay = document.getElementById("overlay");
-        modal.style.display = "none";
-        overlay.style.display = "none";
-    }
-
-    function closeInputModal() {
-        const inputModal = document.getElementById("inputModal");
-        const overlay = document.getElementById("overlay");
-        inputModal.style.display = "none";
-        overlay.style.display = "none";
+        operationHistory.forEach(operation => {
+            const item = document.createElement('li');
+            item.className = `history-item history-${operation.type}`;
+            item.textContent = operation.text;
+            historyList.appendChild(item);
+        });
     }
 </script>
 </body>
