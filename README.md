@@ -28,24 +28,21 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 ---
 
 ## 🖥️ 在线体验
+> 采用Vercel自动部署，国内加载可能较慢,怎么提速，你懂的兄弟。
 
 👉 [VisuAlgoX 官方网站](https://visux.ilikexff.cn/)
 
 ---
 
-## 📸 界面预览
+## 📸 部分功能界面预览
 
-![index](https://images.waer.ltd/notes/202504011612316.gif)
+![index](https://raw.githubusercontent.com/08820048/VisuAlgoX/main/assets/index.gif)
 
-![tree1](https://images.waer.ltd/notes/202504011619970.gif)
+![tree1](https://raw.githubusercontent.com/08820048/VisuAlgoX/main/assets/tree1.gif)
 
-![bezier](https://images.waer.ltd/notes/202504011615364.gif)
+![bezier](https://raw.githubusercontent.com/08820048/VisuAlgoX/main/assets/bezier.gif)
 
-![Astar](https://images.waer.ltd/notes/202504011617002.gif)
-
-
-
-![image-20250401123703670](https://images.waer.ltd/notes/202504011237734.png)
+![Astar](https://raw.githubusercontent.com/08820048/VisuAlgoX/main/assets/Astar.gif)
 
 
 
