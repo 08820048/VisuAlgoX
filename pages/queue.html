@@ -1,193 +1,484 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>队列可视化</title>
+    <title>单向队列基本操作可视化</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
-            background-color: #f4f4f4;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f5f5f5;
         }
         .queue-container {
+            width: 90%;
+            max-width: 800px;
+            margin: 30px 0;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            min-height: 100px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            position: relative;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        .queue-container::before {
+            content: "队首";
+            position: absolute;
+            top: -25px;
+            left: 20px;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        .queue-container::after {
+            content: "队尾";
+            position: absolute;
+            top: -25px;
+            right: 20px;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        .queue-element {
+            width: 80px;
+            height: 60px;
+            background-color: #3498db;
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-top: 20px;
-        }
-        .queue-item {
-            width: 50px;
-            height: 50px;
-            line-height: 50px;
-            border: 2px solid #333;
-            margin: 5px;
-            text-align: center;
+            margin: 0 5px;
+            border-radius: 5px;
             font-weight: bold;
-            background-color: #fff;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-            transition: all 0.5s ease-in-out;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
-        .queue-item.enqueue {
-            background-color: #4CAF50;
-            transform: scale(1.2);
+        .queue-enqueue {
+            background-color: #2ecc71;
+            animation: enqueueAnimation 0.5s;
         }
-        .queue-item.dequeue {
-            background-color: #FF5733;
-            opacity: 0;
-            transform: translateX(-30px);
+        .queue-dequeue {
+            background-color: #e74c3c;
+            animation: dequeueAnimation 0.5s;
+        }
+        @keyframes enqueueAnimation {
+            0% { transform: translateX(50px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes dequeueAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.5); opacity: 0; }
         }
         .controls {
-            margin-top: 20px;
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
         }
         button {
-            padding: 10px 20px;
-            margin: 5px;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
             border: none;
             border-radius: 5px;
-            background-color: #007BFF;
-            color: white;
-            font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         button:hover {
-            background-color: #0056b3;
-            transform: scale(1.05);
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
-        .operation-log {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #fff;
+        .dialog {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 25px;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            max-height: 200px;
-            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 100;
+            width: 300px;
             text-align: center;
         }
-        .log-item {
-            margin-bottom: 10px;
-            padding: 5px;
-            background-color: #f1f1f1;
+        .dialog h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        .dialog-input-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+        .dialog-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .dialog input {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border: 1px solid #ddd;
             border-radius: 5px;
-            display: inline-block;
-            width: 90%;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border 0.3s;
+        }
+        .dialog input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .dialog-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .dialog-buttons button {
+            flex: 1;
+            padding: 8px 0;
+        }
+        .dialog-buttons button:first-child {
+            background-color: #2ecc71;
+        }
+        .dialog-buttons button:first-child:hover {
+            background-color: #27ae60;
+        }
+        .dialog-buttons button:last-child {
+            background-color: #e74c3c;
+        }
+        .dialog-buttons button:last-child:hover {
+            background-color: #c0392b;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+            backdrop-filter: blur(3px);
+        }
+        .history-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-title {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .history-item {
+            padding: 8px 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .history-enqueue {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+        .history-dequeue {
+            background-color: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        .history-peek {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1565c0;
+        }
+        .history-clear {
+            background-color: #fff8e1;
+            color: #f57f17;
+            border-left: 4px solid #f57f17;
+        }
+        .empty-history {
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        .empty-queue {
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+        }
+        .arrow {
+            color: #7f8c8d;
+            margin: 0 5px;
+            font-size: 20px;
         }
     </style>
 </head>
 <body>
-<h1>队列可视化</h1>
-<div class="queue-container" id="queueContainer"></div>
-<div class="controls">
-    <button onclick="enqueue()">入队</button>
-    <button onclick="dequeue()">出队</button>
-    <button onclick="peekFront()">队头元素</button>
-    <button onclick="peekBack()">队尾元素</button>
-    <button onclick="getSize()">队列大小</button>
-    <button onclick="checkEmpty()">是否为空</button>
-    <button onclick="reverseQueue()">翻转队列</button>
-    <button onclick="clearQueue()">清空队列</button>
+<h1 style="color: #2c3e50;">单向队列基本操作可视化</h1>
+<div class="status" id="statusInfo">
+    队列状态: 空 | 大小: 0
 </div>
 
-<!-- 操作记录 -->
-<div class="operation-log" id="operationLog">
-    <h3>操作记录:</h3>
+<div class="controls">
+    <button onclick="showDialog('enqueue')">入队(Enqueue)</button>
+    <button onclick="dequeue()">出队(Dequeue)</button>
+    <button onclick="peek()">查看队首(Peek)</button>
+    <button onclick="clearQueue()">清空队列(Clear)</button>
+</div>
+
+<div class="queue-container" id="queueContainer">
+    <div class="empty-queue">队列为空</div>
+</div>
+
+<div class="history-container">
+    <div class="history-title">操作记录</div>
+    <ul class="history-list" id="historyList">
+        <li class="empty-history">暂无操作记录</li>
+    </ul>
+</div>
+
+<div id="dialogOverlay" class="overlay" style="display: none;"></div>
+<div id="dialog" class="dialog" style="display: none;">
+    <h3 id="dialogTitle">入队操作</h3>
+    <div class="dialog-input-group">
+        <label for="dialogInput">输入要入队的值</label>
+        <input type="text" id="dialogInput" placeholder="请输入值">
+    </div>
+    <div class="dialog-buttons">
+        <button onclick="handleDialogConfirm()">确认</button>
+        <button onclick="hideDialog()">取消</button>
+    </div>
 </div>
 
 <script>
     let queue = [];
+    let operationHistory = [];
 
-    function renderQueue() {
-        const container = document.getElementById("queueContainer");
-        container.innerHTML = "";
-        queue.forEach((value, index) => {
-            const div = document.createElement("div");
-            div.classList.add("queue-item");
-            div.textContent = value;
-            container.appendChild(div);
-        });
+    function showDialog(action) {
+        currentAction = action;
+        const dialog = document.getElementById('dialog');
+        const dialogTitle = document.getElementById('dialogTitle');
+        const dialogInput = document.getElementById('dialogInput');
+
+        dialogTitle.textContent = '入队操作';
+        dialogInput.placeholder = '例如: 42';
+        document.querySelector('label[for="dialogInput"]').textContent = '输入要入队的值';
+
+        document.getElementById('dialogOverlay').style.display = 'block';
+        dialog.style.display = 'block';
+        dialogInput.focus();
     }
 
-    function logOperation(message) {
-        const operationLog = document.getElementById("operationLog");
-        const logItem = document.createElement("div");
-        logItem.classList.add("log-item");
-        logItem.textContent = message;
-        operationLog.appendChild(logItem);
-        operationLog.scrollTop = operationLog.scrollHeight;
+    function hideDialog() {
+        document.getElementById('dialogOverlay').style.display = 'none';
+        document.getElementById('dialog').style.display = 'none';
     }
 
-    function enqueue() {
-        const newValue = Math.floor(Math.random() * 100);
-        queue.push(newValue);
-        renderQueue();
-        animateLastElement("enqueue");
-        logOperation(`入队: ${newValue}`);
-    }
+    function handleDialogConfirm() {
+        const inputValue = document.getElementById('dialogInput').value;
 
-    function dequeue() {
-        if (queue.length > 0) {
-            const removed = queue.shift();
-            renderQueueWithDequeueEffect();
-            logOperation(`出队: ${removed}`);
+        if (!inputValue.trim()) {
+            alert('请输入有效的值');
+            return;
         }
+
+        enqueue(inputValue);
+        hideDialog();
     }
 
-    function renderQueueWithDequeueEffect() {
-        const container = document.getElementById("queueContainer");
-        if (container.children.length > 0) {
-            const firstItem = container.children[0];
-            firstItem.classList.add("dequeue");
+    function enqueue(value) {
+        queue.push(value);
+        renderQueue();
+        updateStatus();
+
+        const operationText = `入队: ${value}`;
+        addHistory(operationText, 'enqueue');
+
+        // 添加入队动画
+        const elements = document.querySelectorAll('.queue-element');
+        if (elements.length > 0) {
+            elements[elements.length - 1].classList.add('queue-enqueue');
             setTimeout(() => {
-                renderQueue();
+                elements[elements.length - 1].classList.remove('queue-enqueue');
             }, 500);
         }
     }
 
-    function peekFront() {
-        if (queue.length > 0) {
-            logOperation(`队头元素: ${queue[0]}`);
-        } else {
-            logOperation("队列为空，无法获取队头元素");
+    function dequeue() {
+        if (queue.length === 0) {
+            alert('队列已空，无法执行出队操作');
+            return;
         }
-    }
 
-    function peekBack() {
-        if (queue.length > 0) {
-            logOperation(`队尾元素: ${queue[queue.length - 1]}`);
-        } else {
-            logOperation("队列为空，无法获取队尾元素");
-        }
-    }
-
-    function getSize() {
-        logOperation(`当前队列大小: ${queue.length}`);
-    }
-
-    function checkEmpty() {
-        logOperation(queue.length === 0 ? "队列为空" : "队列不为空");
-    }
-
-    function reverseQueue() {
-        queue.reverse();
+        const dequeuedValue = queue.shift();
         renderQueue();
-        logOperation("已翻转队列");
+        updateStatus();
+
+        const operationText = `出队: ${dequeuedValue}`;
+        addHistory(operationText, 'dequeue');
+
+        // 添加出队动画
+        const container = document.getElementById('queueContainer');
+        const tempElement = document.createElement('div');
+        tempElement.className = 'queue-element queue-dequeue';
+        tempElement.textContent = dequeuedValue;
+        container.insertBefore(tempElement, container.firstChild);
+
+        setTimeout(() => {
+            container.removeChild(tempElement);
+        }, 500);
+    }
+
+    function peek() {
+        if (queue.length === 0) {
+            alert('队列已空，无队首元素');
+            return;
+        }
+
+        const frontValue = queue[0];
+        alert(`队首元素: ${frontValue}`);
+
+        const operationText = `查看队首: ${frontValue}`;
+        addHistory(operationText, 'peek');
+
+        // 高亮显示队首元素
+        const elements = document.querySelectorAll('.queue-element');
+        if (elements.length > 0) {
+            elements[0].classList.add('highlight');
+            setTimeout(() => {
+                elements[0].classList.remove('highlight');
+            }, 1000);
+        }
     }
 
     function clearQueue() {
+        if (queue.length === 0) {
+            alert('队列已为空');
+            return;
+        }
+
         queue = [];
         renderQueue();
-        logOperation("已清空队列");
+        updateStatus();
+
+        const operationText = '清空队列';
+        addHistory(operationText, 'clear');
     }
 
-    function animateLastElement(className) {
-        const items = document.querySelectorAll(".queue-item");
-        if (items.length > 0) {
-            items[items.length - 1].classList.add(className);
-            setTimeout(() => items[items.length - 1].classList.remove(className), 800);
+    function renderQueue() {
+        const container = document.getElementById('queueContainer');
+        container.innerHTML = '';
+
+        if (queue.length === 0) {
+            container.innerHTML = '<div class="empty-queue">队列为空</div>';
+            return;
         }
+
+        // 添加队首指示箭头
+        if (queue.length > 1) {
+            const arrow = document.createElement('div');
+            arrow.className = 'arrow';
+            arrow.textContent = '→';
+            arrow.title = '数据流动方向';
+            container.appendChild(arrow);
+        }
+
+        queue.forEach((value, index) => {
+            const element = document.createElement('div');
+            element.className = 'queue-element';
+            element.textContent = value;
+            element.title = `值: ${value}`;
+            container.appendChild(element);
+
+            // 在元素之间添加箭头(除了最后一个)
+            if (index < queue.length - 1) {
+                const arrow = document.createElement('div');
+                arrow.className = 'arrow';
+                arrow.textContent = '→';
+                container.appendChild(arrow);
+            }
+        });
     }
+
+    function updateStatus() {
+        const statusInfo = document.getElementById('statusInfo');
+        const isEmpty = queue.length === 0 ? '空' : '非空';
+        statusInfo.textContent = `队列状态: ${isEmpty} | 大小: ${queue.length}`;
+    }
+
+    function addHistory(text, type) {
+        const timestamp = new Date().toLocaleTimeString();
+        const fullText = `[${timestamp}] ${text}`;
+
+        operationHistory.unshift({
+            text: fullText,
+            type: type
+        });
+
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+
+        if (operationHistory.length === 0) {
+            historyList.innerHTML = '<li class="empty-history">暂无操作记录</li>';
+            return;
+        }
+
+        historyList.innerHTML = '';
+
+        operationHistory.forEach(operation => {
+            const item = document.createElement('li');
+            item.className = `history-item history-${operation.type}`;
+            item.textContent = operation.text;
+            historyList.appendChild(item);
+        });
+    }
+
+    // 初始化
+    renderQueue();
+    updateStatus();
 </script>
 </body>
 </html>

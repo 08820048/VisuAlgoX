@@ -1,154 +1,459 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>栈可视化</title>
+    <title>栈基本操作可视化</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f4f4;
-            margin: 20px;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f5f5f5;
         }
         .stack-container {
+            width: 120px;
+            margin: 30px 0;
             display: flex;
             flex-direction: column-reverse;
             align-items: center;
-            margin-top: 20px;
+            border: 2px solid #34495e;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            min-height: 300px;
+            background-color: #ecf0f1;
+            position: relative;
         }
-        .stack-item {
-            width: 80px;
+        .stack-container::before {
+            content: "栈底";
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        .stack-container::after {
+            content: "栈顶";
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        .stack-element {
+            width: 100px;
             height: 50px;
-            line-height: 50px;
-            border: 2px solid #333;
-            margin: 5px;
-            text-align: center;
+            background-color: #3498db;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 2px 0;
+            border-radius: 5px;
             font-weight: bold;
-            background-color: #fff;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-            transition: all 0.5s ease;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .stack-item.pushed {
-            background-color: #4CAF50;
-            transform: scale(1.1);
+        .stack-push {
+            background-color: #2ecc71;
+            animation: pushAnimation 0.5s;
         }
-        .stack-item.popped {
-            background-color: #FF5733;
-            transform: scale(0.8);
-            opacity: 0;
+        .stack-pop {
+            background-color: #e74c3c;
+            animation: popAnimation 0.5s;
+        }
+        @keyframes pushAnimation {
+            0% { transform: translateY(-50px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes popAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.5); opacity: 0; }
         }
         .controls {
-            margin-top: 20px;
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
         }
         button {
-            padding: 10px 20px;
-            margin: 5px;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
             border: none;
             border-radius: 5px;
-            background-color: #007BFF;
-            color: white;
-            font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
-        .operation-log {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #fff;
+        .dialog {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 25px;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            max-height: 200px;
-            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 100;
+            width: 300px;
             text-align: center;
         }
-        .log-item {
-            margin-bottom: 10px;
-            padding: 5px;
-            background-color: #f1f1f1;
+        .dialog h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        .dialog-input-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+        .dialog-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .dialog input {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border: 1px solid #ddd;
             border-radius: 5px;
-            display: inline-block;
-            width: 90%;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border 0.3s;
+        }
+        .dialog input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .dialog-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .dialog-buttons button {
+            flex: 1;
+            padding: 8px 0;
+        }
+        .dialog-buttons button:first-child {
+            background-color: #2ecc71;
+        }
+        .dialog-buttons button:first-child:hover {
+            background-color: #27ae60;
+        }
+        .dialog-buttons button:last-child {
+            background-color: #e74c3c;
+        }
+        .dialog-buttons button:last-child:hover {
+            background-color: #c0392b;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+            backdrop-filter: blur(3px);
+        }
+        .history-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-title {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .history-item {
+            padding: 8px 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .history-push {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+        .history-pop {
+            background-color: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        .history-peek {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1565c0;
+        }
+        .history-clear {
+            background-color: #fff8e1;
+            color: #f57f17;
+            border-left: 4px solid #f57f17;
+        }
+        .empty-history {
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        .empty-stack {
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-<h1>栈可视化</h1>
-<div class="stack-container" id="stackContainer"></div>
+<h1 style="color: #2c3e50;">栈基本操作可视化</h1>
+<div class="status" id="statusInfo">
+    栈状态: 空 | 大小: 0
+</div>
+
 <div class="controls">
-    <button onclick="pushElement()">入栈</button>
-    <button onclick="popElement()">出栈</button>
-    <button onclick="peekElement()">查看栈顶</button>
-    <button onclick="clearStack()">清空栈</button>
+    <button onclick="showDialog('push')">入栈(Push)</button>
+    <button onclick="pop()">出栈(Pop)</button>
+    <button onclick="peek()">查看栈顶(Peek)</button>
+    <button onclick="clearStack()">清空栈(Clear)</button>
 </div>
-<div class="operation-log" id="operationLog">
-    <h3>操作记录:</h3>
+
+<div class="stack-container" id="stackContainer">
+    <div class="empty-stack">栈为空</div>
 </div>
+
+<div class="history-container">
+    <div class="history-title">操作记录</div>
+    <ul class="history-list" id="historyList">
+        <li class="empty-history">暂无操作记录</li>
+    </ul>
+</div>
+
+<div id="dialogOverlay" class="overlay" style="display: none;"></div>
+<div id="dialog" class="dialog" style="display: none;">
+    <h3 id="dialogTitle">入栈操作</h3>
+    <div class="dialog-input-group">
+        <label for="dialogInput">输入要入栈的值</label>
+        <input type="text" id="dialogInput" placeholder="请输入值">
+    </div>
+    <div class="dialog-buttons">
+        <button onclick="handleDialogConfirm()">确认</button>
+        <button onclick="hideDialog()">取消</button>
+    </div>
+</div>
+
 <script>
     let stack = [];
+    let operationHistory = [];
 
-    function renderStack() {
-        const container = document.getElementById("stackContainer");
-        container.innerHTML = "";
-        stack.forEach((value, index) => {
-            const div = document.createElement("div");
-            div.classList.add("stack-item");
-            div.textContent = value;
-            container.appendChild(div);
-        });
+    function showDialog(action) {
+        currentAction = action;
+        const dialog = document.getElementById('dialog');
+        const dialogTitle = document.getElementById('dialogTitle');
+        const dialogInput = document.getElementById('dialogInput');
+
+        dialogTitle.textContent = '入栈操作';
+        dialogInput.placeholder = '例如: 42';
+        document.querySelector('label[for="dialogInput"]').textContent = '输入要入栈的值';
+
+        document.getElementById('dialogOverlay').style.display = 'block';
+        dialog.style.display = 'block';
+        dialogInput.focus();
     }
 
-    function logOperation(message) {
-        const operationLog = document.getElementById("operationLog");
-        const logItem = document.createElement("div");
-        logItem.classList.add("log-item");
-        logItem.textContent = message;
-        operationLog.appendChild(logItem);
-        operationLog.scrollTop = operationLog.scrollHeight;
+    function hideDialog() {
+        document.getElementById('dialogOverlay').style.display = 'none';
+        document.getElementById('dialog').style.display = 'none';
     }
 
-    function pushElement() {
-        const newValue = Math.floor(Math.random() * 100);
-        stack.push(newValue);
+    function handleDialogConfirm() {
+        const inputValue = document.getElementById('dialogInput').value;
+
+        if (!inputValue.trim()) {
+            alert('请输入有效的值');
+            return;
+        }
+
+        push(inputValue);
+        hideDialog();
+    }
+
+    function push(value) {
+        stack.push(value);
         renderStack();
-        animateLastElement("pushed");
-        logOperation(`入栈元素: ${newValue}`);
-    }
+        updateStatus();
 
-    function popElement() {
-        if (stack.length > 0) {
-            const removed = stack.pop();
-            animateLastElement("popped");
-            setTimeout(renderStack, 500);
-            logOperation(`出栈元素: ${removed}`);
+        const operationText = `入栈: ${value}`;
+        addHistory(operationText, 'push');
+
+        // 添加入栈动画
+        const elements = document.querySelectorAll('.stack-element');
+        if (elements.length > 0) {
+            elements[elements.length - 1].classList.add('stack-push');
+            setTimeout(() => {
+                elements[elements.length - 1].classList.remove('stack-push');
+            }, 500);
         }
     }
 
-    function peekElement() {
-        if (stack.length > 0) {
-            alert(`栈顶元素: ${stack[stack.length - 1]}`);
-            logOperation(`查看栈顶元素: ${stack[stack.length - 1]}`);
-        } else {
-            alert("栈为空");
+    function pop() {
+        if (stack.length === 0) {
+            alert('栈已空，无法执行出栈操作');
+            return;
         }
+
+        const poppedValue = stack.pop();
+        renderStack();
+        updateStatus();
+
+        const operationText = `出栈: ${poppedValue}`;
+        addHistory(operationText, 'pop');
+
+        // 添加出栈动画
+        const container = document.getElementById('stackContainer');
+        const tempElement = document.createElement('div');
+        tempElement.className = 'stack-element stack-pop';
+        tempElement.textContent = poppedValue;
+        container.appendChild(tempElement);
+
+        setTimeout(() => {
+            container.removeChild(tempElement);
+        }, 500);
+    }
+
+    function peek() {
+        if (stack.length === 0) {
+            alert('栈已空，无栈顶元素');
+            return;
+        }
+
+        const topValue = stack[stack.length - 1];
+        alert(`栈顶元素: ${topValue}`);
+
+        const operationText = `查看栈顶: ${topValue}`;
+        addHistory(operationText, 'peek');
+
+        // 高亮显示栈顶元素
+        const elements = document.querySelectorAll('.stack-element');
+        elements[elements.length - 1].classList.add('highlight');
+        setTimeout(() => {
+            elements[elements.length - 1].classList.remove('highlight');
+        }, 1000);
     }
 
     function clearStack() {
+        if (stack.length === 0) {
+            alert('栈已为空');
+            return;
+        }
+
         stack = [];
         renderStack();
-        logOperation("清空栈");
+        updateStatus();
+
+        const operationText = '清空栈';
+        addHistory(operationText, 'clear');
     }
 
-    function animateLastElement(className) {
-        const items = document.querySelectorAll(".stack-item");
-        if (items.length > 0) {
-            items[items.length - 1].classList.add(className);
-            setTimeout(() => items[items.length - 1].classList.remove(className), 800);
+    function renderStack() {
+        const container = document.getElementById('stackContainer');
+        container.innerHTML = '';
+
+        if (stack.length === 0) {
+            container.innerHTML = '<div class="empty-stack">栈为空</div>';
+            return;
         }
+
+        stack.forEach((value, index) => {
+            const element = document.createElement('div');
+            element.className = 'stack-element';
+            element.textContent = value;
+            element.title = `值: ${value}`;
+            container.appendChild(element);
+        });
     }
+
+    function updateStatus() {
+        const statusInfo = document.getElementById('statusInfo');
+        const isEmpty = stack.length === 0 ? '空' : '非空';
+        statusInfo.textContent = `栈状态: ${isEmpty} | 大小: ${stack.length}`;
+    }
+
+    function addHistory(text, type) {
+        const timestamp = new Date().toLocaleTimeString();
+        const fullText = `[${timestamp}] ${text}`;
+
+        operationHistory.unshift({
+            text: fullText,
+            type: type
+        });
+
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+
+        if (operationHistory.length === 0) {
+            historyList.innerHTML = '<li class="empty-history">暂无操作记录</li>';
+            return;
+        }
+
+        historyList.innerHTML = '';
+
+        operationHistory.forEach(operation => {
+            const item = document.createElement('li');
+            item.className = `history-item history-${operation.type}`;
+            item.textContent = operation.text;
+            historyList.appendChild(item);
+        });
+    }
+
+    // 初始化
+    renderStack();
+    updateStatus();
 </script>
 </body>
 </html>
