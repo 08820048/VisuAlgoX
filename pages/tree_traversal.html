@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二叉树遍历可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #d8d5d5;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        #control-panel {
+            position: absolute;
+            top: 80px;  /* 从原来的20px调整为80px */
+            left: 20px;
+            background-color: rgba(15, 22, 33, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.5);
+            border: 1px solid #0096ff;
+            z-index: 100;
+            max-width: 300px;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #0096ff;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.5);
+            font-size: 24px;
+            border-bottom: 1px solid #0096ff;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #7fdbff;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            background-color: #1a2433;
+            border: 1px solid #0096ff;
+            border-radius: 4px;
+            color: #e0e0e0;
+            box-sizing: border-box;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            position: relative;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #1a2433, #0f1621);
+            border: 1px solid #0096ff;
+            color: #7fdbff;
+            border-radius: 5px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.3s;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(0, 150, 255, 0.3);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #0096ff, #0066cc);
+            color: white;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.7);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #1a2433;
+            color: #555;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                    to bottom right,
+                    transparent, transparent, transparent,
+                    rgba(0, 150, 255, 0.1), transparent, transparent, transparent
+            );
+            transform: rotate(30deg);
+            transition: all 0.3s;
+        }
+
+        .btn:hover::before {
+            animation: shine 1.5s infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                left: -50%;
+            }
+            100% {
+                left: 150%;
+            }
+        }
+
+        #tree-input {
+            margin-bottom: 15px;
+        }
+
+        #status {
+            margin-top: 15px;
+            color: #7fdbff;
+            font-style: italic;
+            min-height: 20px;
+        }
+
+        .legend {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+
+        #speed-control {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        #speed-label {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+        }
+        #main-title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0096ff;
+            font-size: 28px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.5);
+            z-index: 200;
+            margin: 0;
+            padding: 10px 20px;
+            background-color: rgba(15, 22, 33, 0.7);
+            border-radius: 10px;
+            border: 1px solid #0096ff;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+<h1 id="main-title">二叉树遍历可视化</h1>
+<div id="container"></div>
+<div id="control-panel">
+    <h1>控制面板</h1>
+
+    <div class="input-group">
+        <label for="tree-input">输入节点值（逗号分隔）:</label>
+        <input type="text" id="tree-input" placeholder="例如: 1,2,3,4,5,6,7">
+    </div>
+
+    <button id="build-btn" class="btn">构建二叉树</button>
+
+    <div class="button-group">
+        <button id="preorder-btn" class="btn" disabled>前序遍历</button>
+        <button id="inorder-btn" class="btn" disabled>中序遍历</button>
+        <button id="postorder-btn" class="btn" disabled>后序遍历</button>
+        <button id="levelorder-btn" class="btn" disabled>层序遍历</button>
+    </div>
+
+    <div class="input-group">
+        <label for="speed-control">遍历速度:</label>
+        <input type="range" id="speed-control" min="100" max="2000" value="500" step="100">
+        <div id="speed-label">
+            <span>慢</span>
+            <span>快</span>
+        </div>
+    </div>
+
+    <div id="status">等待构建二叉树...</div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #0096ff;"></div>
+            <span>未访问节点</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ff5555;"></div>
+            <span>当前访问节点</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #55ff55;"></div>
+            <span>已访问节点</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ffff55;"></div>
+            <span>待处理节点</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 全局变量
+    let scene, camera, renderer, controls;
+    let treeRoot = null;
+    let isTraversing = false;
+    let traversalSpeed = 500;
+
+    // 节点颜色定义
+    const colors = {
+        default: 0x0096ff,    // 未访问 - 蓝色
+        current: 0xff5555,    // 当前访问 - 红色
+        visited: 0x55ff55,    // 已访问 - 绿色
+        pending: 0xffff55,    // 待处理 - 黄色
+        text: 0xffffff,
+        line: 0x0096ff,
+        lineHighlight: 0xffaa00
+    };
+
+    // 初始化Three.js场景
+    function init() {
+        // 创建场景
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xd8d5d5);
+
+        // 创建相机
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+        camera.position.y = 0;
+
+        // 创建渲染器
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // 添加轨道控制器
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // 添加环境光和方向光
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // 窗口大小调整事件
+        window.addEventListener('resize', onWindowResize, false);
+
+        // 事件监听
+        document.getElementById('build-btn').addEventListener('click', buildTree);
+        document.getElementById('preorder-btn').addEventListener('click', () => traverseTree('preorder'));
+        document.getElementById('inorder-btn').addEventListener('click', () => traverseTree('inorder'));
+        document.getElementById('postorder-btn').addEventListener('click', () => traverseTree('postorder'));
+        document.getElementById('levelorder-btn').addEventListener('click', () => traverseTree('levelorder'));
+        document.getElementById('speed-control').addEventListener('input', (e) => {
+            traversalSpeed = 2100 - e.target.value; // 反转值，使滑块右侧为快
+        });
+
+        // 开始动画循环
+        animate();
+    }
+
+    // 窗口大小调整
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // 构建二叉树
+    function buildTree() {
+        if (isTraversing) return;
+
+        const input = document.getElementById('tree-input').value.trim();
+        if (!input) {
+            updateStatus('请输入节点值');
+            return;
+        }
+
+        const values = input.split(',').map(val => val.trim()).filter(val => val !== '');
+        if (values.length === 0) {
+            updateStatus('请输入有效的节点值');
+            return;
+        }
+
+        // 清空场景
+        clearScene();
+
+        // 构建二叉树
+        treeRoot = buildBinaryTree(values);
+
+        // 可视化二叉树
+        visualizeBinaryTree(treeRoot);
+
+        // 启用遍历按钮
+        enableTraversalButtons(true);
+
+        updateStatus('二叉树构建完成，请选择遍历方式');
+    }
+
+    // 根据数组构建二叉树（层序构建）
+    function buildBinaryTree(values) {
+        if (values.length === 0) return null;
+
+        const root = { value: values[0], left: null, right: null, mesh: null, lineToParent: null };
+        const queue = [root];
+        let index = 1;
+
+        while (queue.length > 0 && index < values.length) {
+            const currentNode = queue.shift();
+
+            // 左子节点
+            if (index < values.length && values[index] !== '') {
+                currentNode.left = {
+                    value: values[index],
+                    left: null,
+                    right: null,
+                    parent: currentNode,
+                    mesh: null,
+                    lineToParent: null
+                };
+                queue.push(currentNode.left);
+            }
+            index++;
+
+            // 右子节点
+            if (index < values.length && values[index] !== '') {
+                currentNode.right = {
+                    value: values[index],
+                    left: null,
+                    right: null,
+                    parent: currentNode,
+                    mesh: null,
+                    lineToParent: null
+                };
+                queue.push(currentNode.right);
+            }
+            index++;
+        }
+
+        return root;
+    }
+
+    // 可视化二叉树（根节点在上方）
+    function visualizeBinaryTree(root) {
+        if (!root) return;
+
+        // 计算树的高度和布局
+        const height = getTreeHeight(root);
+        const maxWidth = Math.pow(2, height - 1) * 2;
+
+        // 使用递归布局树（根节点在上方）
+        layoutTree(root, 0, 0, maxWidth / 2, height);
+
+        // 自动调整相机位置
+        adjustCameraToFitTree(root, height);
+    }
+
+    // 递归布局树节点（根节点在上方）
+    function layoutTree(node, depth, x, horizontalGap, treeHeight) {
+        if (!node) return;
+
+        // 计算位置（根节点在上方，y值越大位置越高）
+        const y = (treeHeight - depth) * 2;
+
+        // 创建节点球体
+        const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const material = new THREE.MeshPhongMaterial({
+            color: colors.default,
+            emissive: 0x003366,
+            emissiveIntensity: 0.2,
+            specular: 0x0099ff,
+            shininess: 30
+        });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(x, y, 0);
+        scene.add(sphere);
+        node.mesh = sphere;
+
+        // 创建节点文本
+        createText(node.value.toString(), x, y, 0);
+
+        // 创建连接到父节点的线
+        if (node.parent) {
+            const parentPos = node.parent.mesh.position;
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(parentPos.x, parentPos.y, parentPos.z),
+                new THREE.Vector3(x, y, 0)
+            ]);
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: colors.line,
+                transparent: true,
+                opacity: 0.7,
+                linewidth: 2
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+            node.lineToParent = line;
+        }
+
+        // 计算子节点的水平间隔
+        const childGap = horizontalGap / 2;
+
+        // 递归布局左子树
+        if (node.left) {
+            layoutTree(node.left, depth + 1, x - childGap, childGap, treeHeight);
+        }
+
+        // 递归布局右子树
+        if (node.right) {
+            layoutTree(node.right, depth + 1, x + childGap, childGap, treeHeight);
+        }
+    }
+
+    // 调整相机位置以适应树的大小
+    function adjustCameraToFitTree(root, treeHeight) {
+        if (!root) return;
+
+        // 计算树的边界
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+        const queue = [root];
+        while (queue.length > 0) {
+            const node = queue.shift();
+            const pos = node.mesh.position;
+
+            minX = Math.min(minX, pos.x);
+            maxX = Math.max(maxX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxY = Math.max(maxY, pos.y);
+
+            if (node.left) queue.push(node.left);
+            if (node.right) queue.push(node.right);
+        }
+
+        // 计算树的宽度和高度
+        const treeWidth = maxX - minX;
+        const treeHeightVisual = maxY - minY;
+
+        // 调整相机位置
+        const distance = Math.max(treeWidth * 1.5, treeHeightVisual * 2);
+        camera.position.z = distance;
+        camera.position.y = (maxY + minY) / 2;
+
+        // 更新相机
+        camera.lookAt(new THREE.Vector3(0, (maxY + minY) / 2, 0));
+        controls.target.set(0, (maxY + minY) / 2, 0);
+        controls.update();
+    }
+
+    // 获取树的高度
+    function getTreeHeight(node) {
+        if (!node) return 0;
+        return 1 + Math.max(getTreeHeight(node.left), getTreeHeight(node.right));
+    }
+
+    // 创建文本
+    function createText(text, x, y, z) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const context = canvas.getContext('2d');
+        context.fillStyle = 'rgba(0, 0, 0, 0)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.font = 'Bold 40px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillStyle = 'white';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(1, 0.5, 1);
+        scene.add(sprite);
+    }
+
+    // 清空场景
+    function clearScene() {
+        // 移除所有除了灯光和相机的对象
+        scene.children.forEach(child => {
+            if (!(child instanceof THREE.Light) && !(child instanceof THREE.Camera)) {
+                scene.remove(child);
+            }
+        });
+
+        treeRoot = null;
+        enableTraversalButtons(false);
+    }
+
+    // 启用/禁用遍历按钮
+    function enableTraversalButtons(enable) {
+        document.getElementById('preorder-btn').disabled = !enable;
+        document.getElementById('inorder-btn').disabled = !enable;
+        document.getElementById('postorder-btn').disabled = !enable;
+        document.getElementById('levelorder-btn').disabled = !enable;
+    }
+
+    // 更新状态信息
+    function updateStatus(message) {
+        document.getElementById('status').textContent = message;
+    }
+
+    // 遍历二叉树
+    function traverseTree(type) {
+        if (!treeRoot || isTraversing) return;
+
+        isTraversing = true;
+        enableTraversalButtons(false);
+        document.getElementById('build-btn').disabled = true;
+
+        // 重置所有节点颜色
+        resetNodeColors(treeRoot);
+
+        updateStatus(`执行${getTraversalName(type)}遍历...`);
+
+        // 根据类型选择遍历方法
+        let traversal;
+        switch (type) {
+            case 'preorder':
+                traversal = preorderTraversal;
+                break;
+            case 'inorder':
+                traversal = inorderTraversal;
+                break;
+            case 'postorder':
+                traversal = postorderTraversal;
+                break;
+            case 'levelorder':
+                traversal = levelorderTraversal;
+                break;
+            default:
+                traversal = preorderTraversal;
+        }
+
+        // 执行遍历
+        const nodes = [];
+        traversal(treeRoot, nodes);
+
+        // 动画显示遍历过程
+        animateTraversal(nodes, type);
+    }
+
+    // 获取遍历名称
+    function getTraversalName(type) {
+        switch (type) {
+            case 'preorder': return '前序';
+            case 'inorder': return '中序';
+            case 'postorder': return '后序';
+            case 'levelorder': return '层序';
+            default: return '';
+        }
+    }
+
+    // 重置所有节点颜色
+    function resetNodeColors(node) {
+        if (!node) return;
+
+        if (node.mesh) {
+            node.mesh.material.color.setHex(colors.default);
+            node.mesh.material.needsUpdate = true;
+        }
+
+        if (node.lineToParent) {
+            node.lineToParent.material.color.setHex(colors.line);
+            node.lineToParent.material.needsUpdate = true;
+        }
+
+        resetNodeColors(node.left);
+        resetNodeColors(node.right);
+    }
+
+    // 前序遍历
+    function preorderTraversal(node, result) {
+        if (!node) return;
+
+        result.push(node);
+        preorderTraversal(node.left, result);
+        preorderTraversal(node.right, result);
+    }
+
+    // 中序遍历
+    function inorderTraversal(node, result) {
+        if (!node) return;
+
+        inorderTraversal(node.left, result);
+        result.push(node);
+        inorderTraversal(node.right, result);
+    }
+
+    // 后序遍历
+    function postorderTraversal(node, result) {
+        if (!node) return;
+
+        postorderTraversal(node.left, result);
+        postorderTraversal(node.right, result);
+        result.push(node);
+    }
+
+    // 层序遍历
+    function levelorderTraversal(root, result) {
+        if (!root) return;
+
+        const queue = [root];
+        while (queue.length > 0) {
+            const node = queue.shift();
+            result.push(node);
+
+            if (node.left) queue.push(node.left);
+            if (node.right) queue.push(node.right);
+        }
+    }
+
+    // 动画显示遍历过程
+    function animateTraversal(nodes, type) {
+        let index = 0;
+        const visitedNodes = new Set();
+        const pendingNodes = new Set(nodes); // 所有待处理节点
+
+        // 首先将所有节点标记为待处理（黄色）
+        nodes.forEach(node => {
+            if (node.mesh) {
+                node.mesh.material.color.setHex(colors.pending);
+                node.mesh.material.needsUpdate = true;
+            }
+        });
+
+        function animateStep() {
+            if (index >= nodes.length) {
+                // 遍历完成
+                isTraversing = false;
+                enableTraversalButtons(true);
+                document.getElementById('build-btn').disabled = false;
+                updateStatus(`${getTraversalName(type)}遍历完成`);
+                return;
+            }
+
+            const currentNode = nodes[index];
+
+            // 从待处理集合中移除当前节点
+            pendingNodes.delete(currentNode);
+
+            // 标记当前节点为正在访问（红色）
+            if (currentNode.mesh) {
+                currentNode.mesh.material.color.setHex(colors.current);
+                currentNode.mesh.material.needsUpdate = true;
+            }
+
+            // 高亮显示连接到父节点的线
+            if (currentNode.lineToParent) {
+                currentNode.lineToParent.material.color.setHex(colors.lineHighlight);
+                currentNode.lineToParent.material.needsUpdate = true;
+            }
+
+            // 更新待处理节点的颜色（不包括已访问和当前节点）
+            pendingNodes.forEach(node => {
+                if (node.mesh && !visitedNodes.has(node) && node !== currentNode) {
+                    node.mesh.material.color.setHex(colors.pending);
+                    node.mesh.material.needsUpdate = true;
+                }
+            });
+
+            // 延迟后恢复颜色
+            setTimeout(() => {
+                // 标记当前节点为已访问（绿色）
+                if (currentNode.mesh) {
+                    currentNode.mesh.material.color.setHex(colors.visited);
+                    currentNode.mesh.material.needsUpdate = true;
+                }
+
+                // 恢复连接到父节点的线颜色
+                if (currentNode.lineToParent) {
+                    currentNode.lineToParent.material.color.setHex(colors.line);
+                    currentNode.lineToParent.material.needsUpdate = true;
+                }
+
+                visitedNodes.add(currentNode);
+                index++;
+                animateStep();
+            }, traversalSpeed / 2);
+        }
+
+        animateStep();
+    }
+
+    // 初始化应用
+    window.onload = init;
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速排序可视化</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #333;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .input-container {
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .array-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .bar {
+            width: 30px;
+            margin: 2px;
+            background-color: #007BFF;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .pivot {
+            background-color: #FF5733 !important;
+        }
+
+        .swap {
+            background-color: #4CAF50 !important;
+        }
+    </style>
+</head>
+<body>
+<h1>快速排序可视化</h1>
+<div class="container">
+    <div class="input-container">
+        <input type="text" id="arrayInput" placeholder="输入数字数组 (例如: 5,3,8,6,2)">
+        <button onclick="startSorting()">开始排序</button>
+    </div>
+    <div class="array-container" id="arrayContainer"></div>
+</div>
+
+<script>
+    let array = [];
+    let steps = [];
+    let stepIndex = 0;
+
+    function createBars(arr) {
+        const container = document.getElementById("arrayContainer");
+        container.innerHTML = "";
+        arr.forEach((value, index) => {
+            const bar = document.createElement("div");
+            bar.classList.add("bar");
+            bar.style.height = `${value * 5}px`;
+            bar.innerText = value;
+            bar.dataset.index = index;
+            container.appendChild(bar);
+        });
+    }
+
+    function startSorting() {
+        const input = document.getElementById("arrayInput").value;
+        array = input.split(",").map(Number);
+        steps = [];
+        quickSort([...array], 0, array.length - 1);
+        stepIndex = 0;
+        createBars(array);
+        executeStep();
+    }
+
+    function quickSort(arr, left, right) {
+        if (left < right) {
+            let pivotIndex = partition(arr, left, right);
+            quickSort(arr, left, pivotIndex - 1);
+            quickSort(arr, pivotIndex + 1, right);
+        }
+    }
+
+    function partition(arr, left, right) {
+        let pivot = arr[right];
+        let i = left - 1;
+        steps.push({ type: "pivot", index: right });
+
+        for (let j = left; j < right; j++) {
+            if (arr[j] < pivot) {
+                i++;
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+                steps.push({ type: "swap", first: i, second: j, array: [...arr] });
+            }
+        }
+        [arr[i + 1], arr[right]] = [arr[right], arr[i + 1]];
+        steps.push({ type: "swap", first: i + 1, second: right, array: [...arr] });
+        return i + 1;
+    }
+
+    function executeStep() {
+        if (stepIndex >= steps.length) return;
+        const step = steps[stepIndex];
+        const bars = document.querySelectorAll(".bar");
+
+        bars.forEach(bar => bar.classList.remove("pivot", "swap"));
+
+        if (step.type === "pivot") {
+            bars[step.index].classList.add("pivot");
+        } else if (step.type === "swap") {
+            bars[step.first].classList.add("swap");
+            bars[step.second].classList.add("swap");
+            setTimeout(() => {
+                createBars(step.array);
+                stepIndex++;
+                setTimeout(executeStep, 800);
+            }, 800);
+            return;
+        }
+        stepIndex++;
+        setTimeout(executeStep, 800);
+    }
+</script>
+</body>
+</html>
