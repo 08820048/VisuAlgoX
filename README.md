@@ -46,14 +46,6 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 
 ## 📦 安装与使用
 
-### 1️⃣ 本地运行
-
-```sh
-# 克隆项目
-git clone https://github.com/your-repo/VisuAlgoX.git
-# 运行
-直接点击index.html即可打开首页
-```
 
 ### 2️⃣ 直接在浏览器中使用
 
@@ -75,7 +67,7 @@ git clone https://github.com/your-repo/VisuAlgoX.git
 
 ## 📜 开源协议
 
-本项目基于 [MIT License](https://github.com/08820048/VisuAlgoX/blob/main/LICENSE) 许可开源，欢迎自由使用和修改。
+本项目基于 [MIT License](https://github.com/08820048/VisuAlgoX/blob/main/LICENSE) 许可开源，请遵循协议许可。
 
 ---
 
