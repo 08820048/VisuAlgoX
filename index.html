@@ -4,9 +4,217 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisuAlgoX - 让算法不再抽象</title>
-    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <style>
+        :root {
+            --primary: #0096ff;
+            --secondary: #00d4ff;
+            --dark: #0f1621;
+            --light: #e0e0e0;
+            --accent: #ff5555;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        /* 顶部标题 */
+        .header {
+            text-align: center;
+            padding: 2rem 1rem;
+            position: relative;
+            z-index: 10;
+            background: linear-gradient(180deg, rgba(15,22,33,0.9) 0%, rgba(15,22,33,0.7) 100%);
+            backdrop-filter: blur(5px);
+            border-bottom: 1px solid rgba(0, 150, 255, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+            letter-spacing: 1px;
+        }
+
+        .intro {
+            max-width: 800px;
+            margin: 0 auto;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: rgba(224, 224, 224, 0.9);
+        }
+
+        /* 主容器 */
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: rgba(26, 36, 51, 0.7);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+            border: 1px solid rgba(0, 150, 255, 0.2);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 150, 255, 0.1) 0%, transparent 100%);
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 150, 255, 0.2);
+            border-color: rgba(0, 150, 255, 0.5);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card h3 {
+            padding: 1.5rem 1.5rem 0;
+            font-size: 1.3rem;
+            color: var(--primary);
+            position: relative;
+            z-index: 2;
+        }
+
+        .card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover img {
+            opacity: 1;
+        }
+
+        .card p {
+            padding: 1rem 1.5rem 1.5rem;
+            color: rgba(224, 224, 224, 0.8);
+            line-height: 1.6;
+            font-size: 0.95rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 页脚 */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+            background: rgba(15, 22, 33, 0.8);
+            border-top: 1px solid rgba(0, 150, 255, 0.3);
+            font-size: 0.9rem;
+            color: rgba(224, 224, 224, 0.7);
+        }
+
+        .footer a {
+            color: var(--secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer a:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .intro {
+                font-size: 1rem;
+            }
+        }
+
+        /* 科技风装饰元素 */
+        .tech-circle {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            pointer-events: none;
+        }
+
+        /* 加载动画 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* 3D卡片效果 */
+        .card-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+        }
+
+        .card-3d:hover {
+            transform: rotateY(10deg) rotateX(5deg);
+        }
+    </style>
 </head>
 <body>
+<!-- Three.js 背景 -->
+<canvas id="bg-canvas"></canvas>
 
 <!-- 顶部介绍 -->
 <header class="header">
@@ -16,64 +224,36 @@
 
 <!-- 可视化卡片容器 -->
 <section class="container">
-    <div class="card" onclick="location.href='pages/array.html'">
+    <div class="card card-3d" onclick="location.href='pages/array.html'">
         <h3>数组基本操作</h3>
         <img src="images/bg.png" alt="数组可视化">
         <p>展示数组的存储方式、查找、插入和删除等基本操作。</p>
     </div>
-    <div class="card" onclick="location.href='pages/stack.html'">
+    <div class="card card-3d" onclick="location.href='pages/stack.html'">
         <h3>栈的基本操作</h3>
         <img src="images/bg.png" alt="栈可视化">
         <p>演示栈的 FILO 结构，以及 push、pop 操作。</p>
     </div>
-    <div class="card" onclick="location.href='pages/queue.html'">
+    <div class="card card-3d" onclick="location.href='pages/queue.html'">
         <h3>普通队列基本操作</h3>
         <img src="images/bg.png" alt="队列可视化">
         <p>模拟普通队列的 FIFO 规则。</p>
     </div>
-    <div class="card" onclick="location.href='pages/bezier.html'">
-        <h3>贝赛尔曲线<span style="color: #7a7575"></span></h3>
+    <div class="card card-3d" onclick="location.href='pages/bezier.html'">
+        <h3>贝赛尔曲线</h3>
         <img src="images/bg.png" alt="贝塞尔曲线">
         <p>贝塞尔曲线（Bezier Curve）是一种用于计算机图形学中的数学曲线，广泛应用于动画、路径规划、矢量图形设计和许多其他图形领域。</p>
     </div>
-    <div class="card" onclick="location.href='pages/a_star.html'">
-        <h3>A*寻路<span style="color: #7a7575"></span></h3>
+    <div class="card card-3d" onclick="location.href='pages/a_star.html'">
+        <h3>A*寻路</h3>
         <img src="images/bg.png" alt="A*寻路算法">
-        <p>A 算法是一种高效的 路径搜索算法，广泛应用于 游戏 AI、机器人导航和地图应用。它结合了 Dijkstra 算法的最短路径搜索和贪心搜索*的启发式方法，能够快速找到从起点到终点的最优路径。</p>
+        <p>A 算法是一种高效的路径搜索算法，广泛应用于游戏 AI、机器人导航和地图应用。它结合了 Dijkstra 算法的最短路径搜索和贪心搜索的启发式方法，能够快速找到从起点到终点的最优路径。</p>
     </div>
-
-    <div class="card" onclick="location.href='pages/tree_traversal.html'">
-        <h3>二叉树基本遍历<span style="color: #7a7575"></span></h3>
+    <div class="card card-3d" onclick="location.href='pages/tree_traversal.html'">
+        <h3>二叉树基本遍历</h3>
         <img src="images/bg.png" alt="二叉树基本遍历">
         <p>支持自定义数据动态构建二叉树病实现二叉树的四种基本遍历方式：前序遍历、中序遍历、后序遍历和层序遍历。它们按照不同的访问顺序来遍历二叉树中的所有节点。</p>
     </div>
-
-<!--    <div class="card" onclick="location.href='pages/quick_sort.html'">-->
-<!--        <h3>快速排序<span style="color: #7a7575"></span></h3>-->
-<!--        <img src="images/bg.png" alt="快速排序">-->
-<!--        <p>快速排序（Quick Sort）是一种高效的排序算法，它采用分治法（Divide and Conquer）的思想，将一个大数组分成两个小数组，然后递归地对这两个小数组进行排序。</p>-->
-<!--    </div>-->
-
-<!--    <div class="card" onclick="location.href='pages/linkedlist.html'">-->
-<!--        <h3>单链表<span style="color: #7a7575">(开发中)</span></h3>-->
-<!--        <img src="images/bg.png" alt="链表可视化">-->
-<!--        <p>动态展示单链表、双链表的插入、删除、遍历操作。</p>-->
-<!--    </div>-->
-<!--    <div class="card" onclick="location.href='pages/tree.html'">-->
-<!--        <h3>树结构展示<span style="color: #7a7575">(开发中)</span></h3>-->
-<!--        <img src="images/bg.png" alt="树可视化">-->
-<!--        <p>二叉树、AVL 树、红黑树等动态构造与遍历过程。</p>-->
-<!--    </div>-->
-<!--    <div class="card" onclick="location.href='pages/graph.html'">-->
-<!--        <h3>图<span style="color: #7a7575">(开发中)</span></h3>-->
-<!--        <img src="images/bg.png" alt="图可视化">-->
-<!--        <p>演示深度优先搜索（DFS）、广度优先搜索（BFS）等算法。</p>-->
-<!--    </div>-->
-<!--    <div class="card" onclick="location.href='pages/graph.html'">-->
-<!--        <h3>选择排序<span style="color: #7a7575">(开发中)</span></h3>-->
-<!--        <img src="images/bg.png" alt="图可视化">-->
-<!--        <p>演示深度优先搜索（DFS）、广度优先搜索（BFS）等算法。</p>-->
-<!--    </div>-->
 </section>
 
 <!-- 页脚 -->
@@ -82,5 +262,155 @@
     <p>© 2025 AlgoView. All Rights Reserved.</p>
 </footer>
 
+<script>
+    // Three.js 背景动画
+    const bgCanvas = document.getElementById('bg-canvas');
+
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({
+        canvas: bgCanvas,
+        antialias: true,
+        alpha: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    // 创建粒子系统
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particleCount = 1000;
+
+    const posArray = new Float32Array(particleCount * 3);
+    const sizeArray = new Float32Array(particleCount);
+
+    for(let i = 0; i < particleCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 20;
+        if(i % 3 === 2) {
+            posArray[i] = Math.random() * 10 - 5;
+        }
+    }
+
+    for(let i = 0; i < particleCount; i++) {
+        sizeArray[i] = Math.random() * 0.5 + 0.1;
+    }
+
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizeArray, 1));
+
+    const particlesMaterial = new THREE.PointsMaterial({
+        size: 0.1,
+        color: 0x0096ff,
+        transparent: true,
+        opacity: 0.8,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending
+    });
+
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+
+    camera.position.z = 5;
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+
+        particlesMesh.rotation.x += 0.0005;
+        particlesMesh.rotation.y += 0.001;
+
+        // 更新粒子位置
+        const positions = particlesGeometry.attributes.position.array;
+        for(let i = 0; i < particleCount * 3; i += 3) {
+            positions[i + 1] -= 0.01;
+            if(positions[i + 1] < -10) {
+                positions[i + 1] = 10;
+                positions[i] = (Math.random() - 0.5) * 20;
+                positions[i + 2] = Math.random() * 10 - 5;
+            }
+        }
+        particlesGeometry.attributes.position.needsUpdate = true;
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 创建科技风装饰圆环
+    function createTechCircles() {
+        const colors = ['rgba(0, 150, 255, 0.2)', 'rgba(0, 210, 255, 0.15)', 'rgba(0, 255, 200, 0.1)'];
+
+        for(let i = 0; i < 5; i++) {
+            const circle = document.createElement('div');
+            circle.className = 'tech-circle';
+
+            const size = Math.random() * 300 + 100;
+            const posX = Math.random() * 100;
+            const posY = Math.random() * 100;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            circle.style.width = `${size}px`;
+            circle.style.height = `${size}px`;
+            circle.style.left = `${posX}%`;
+            circle.style.top = `${posY}%`;
+            circle.style.borderColor = color;
+            circle.style.animation = `float ${Math.random() * 10 + 10}s infinite ease-in-out, pulse ${Math.random() * 5 + 5}s infinite`;
+
+            document.body.appendChild(circle);
+        }
+    }
+
+    createTechCircles();
+
+    // 卡片悬停效果增强
+    const cards = document.querySelectorAll('.card');
+    cards.forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const x = e.clientX - card.getBoundingClientRect().left;
+            const y = e.clientY - card.getBoundingClientRect().top;
+
+            const centerX = card.offsetWidth / 2;
+            const centerY = card.offsetHeight / 2;
+
+            const angleX = (y - centerY) / 20;
+            const angleY = (centerX - x) / 20;
+
+            card.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) translateY(-10px)`;
+
+            // 光效跟随
+            const glow = document.createElement('div');
+            glow.style.position = 'absolute';
+            glow.style.width = '100px';
+            glow.style.height = '100px';
+            glow.style.background = 'radial-gradient(circle, rgba(0, 150, 255, 0.5) 0%, transparent 70%)';
+            glow.style.borderRadius = '50%';
+            glow.style.top = `${y - 50}px`;
+            glow.style.left = `${x - 50}px`;
+            glow.style.pointerEvents = 'none';
+            glow.style.zIndex = '1';
+            glow.style.filter = 'blur(5px)';
+
+            card.appendChild(glow);
+
+            setTimeout(() => {
+                glow.style.opacity = '0';
+                glow.style.transform = 'scale(1.5)';
+                setTimeout(() => {
+                    card.removeChild(glow);
+                }, 300);
+            }, 50);
+        });
+
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateY(-10px)';
+        });
+    });
+</script>
 </body>
 </html>
