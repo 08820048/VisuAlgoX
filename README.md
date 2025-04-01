@@ -75,13 +75,13 @@ git clone https://github.com/your-repo/VisuAlgoX.git
 
 ## 📜 开源协议
 
-本项目基于 [MIT License](LICENSE) 许可开源，欢迎自由使用和修改。
+本项目基于 [MIT License](https://github.com/08820048/VisuAlgoX/blob/main/LICENSE) 许可开源，欢迎自由使用和修改。
 
 ---
 
 ## 📧 联系方式
 
-📩 邮箱: iliexff@gmail.com  
+📩 邮箱: ilikexff@gmail.com  
 🌐 博客: [https://www.ilikexff.cn/](https://www.ilikexff.cn/)
 
 ---
