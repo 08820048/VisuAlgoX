@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选择排序3D可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --secondary: #0066ff;
+            --dark: #0a0e17;
+            --light: #e0f7ff;
+            --panel-bg: rgba(10, 14, 23, 0.8);
+            --border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 标题 */
+        .header {
+            text-align: center;
+            padding: 1rem;
+            background: linear-gradient(180deg, rgba(15,22,33,0.95) 0%, rgba(15,22,33,0.85) 100%);
+            backdrop-filter: blur(4px);
+            border-bottom: var(--border);
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            width: 300px;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-right: var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            border-bottom: var(--border);
+            padding-bottom: 15px;
+        }
+
+        .panel-title {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--dark);
+            border: none;
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            height: 5px;
+            background: rgba(0, 240, 255, 0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 240, 255, 0.8);
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--primary);
+            color: var(--light);
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .data-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .data-input input {
+            flex: 1;
+        }
+
+        .data-input button {
+            width: auto;
+        }
+
+        /* 可视化区域 */
+        .visualization {
+            flex: 1;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 科技风装饰元素 */
+        .tech-decoration {
+            position: absolute;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            pointer-events: none;
+        }
+
+        .tech-decoration:nth-child(1) {
+            top: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            transform: rotate(45deg);
+        }
+
+        .tech-decoration:nth-child(2) {
+            bottom: 40px;
+            left: 40px;
+            width: 60px;
+            height: 60px;
+            border-right-color: var(--primary);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 标题 -->
+<header class="header">
+    <h1>选择排序可视化</h1>
+</header>
+
+<!-- 主内容区域 -->
+<div class="main-content">
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <div class="panel-section">
+            <h3 class="panel-title">数据输入</h3>
+            <div class="data-input">
+                <input type="text" id="dataInput" placeholder="输入数字，用逗号分隔">
+                <button id="applyData">应用</button>
+            </div>
+            <button id="randomData">随机生成数据</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">排序控制</h3>
+            <button id="startBtn">开始排序</button>
+            <button id="pauseBtn" disabled>暂停</button>
+            <button id="resetBtn">重置</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">参数设置</h3>
+            <label>排序速度: <span id="speedValue">中</span></label>
+            <input type="range" id="sortSpeed" min="1" max="10" value="5">
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">可视化样式</h3>
+            <label>元素形状:</label>
+            <select id="shapeType">
+                <option value="box">立方体</option>
+                <option value="sphere">球体</option>
+                <option value="cylinder">圆柱</option>
+            </select>
+
+            <label>颜色模式:</label>
+            <select id="colorMode">
+                <option value="gradient">渐变</option>
+                <option value="random">随机</option>
+                <option value="monochrome">单色</option>
+            </select>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">状态信息</h3>
+            <div class="status" id="statusInfo">
+                请输入数据或随机生成数据
+            </div>
+            <div id="comparisonCount">比较次数: 0</div>
+            <div id="swapCount">交换次数: 0</div>
+            <div id="currentStep">当前步骤: -</div>
+        </div>
+    </div>
+
+    <!-- 可视化区域 -->
+    <div class="visualization">
+        <div class="tech-decoration"></div>
+        <div class="tech-decoration"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+
+<script>
+    // 初始化Three.js场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0e17);
+
+    // 添加环境光和定向光
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0x00f0ff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // 添加辅助网格
+    const gridHelper = new THREE.GridHelper(30, 30, 0x00f0ff, 0x0066ff);
+    gridHelper.position.y = -5;
+    scene.add(gridHelper);
+
+    // 初始化相机
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 15, 30);
+
+    // 初始化渲染器
+    const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('canvas'),
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // 添加轨道控制器
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 排序状态变量
+    let isSorting = false;
+    let isPaused = false;
+    let sortingComplete = false;
+    let comparisonCount = 0;
+    let swapCount = 0;
+    let speed = 5;
+    let animationId = null;
+
+    // 数组和3D对象
+    let array = [];
+    let bars = [];
+    let currentIndex = 0;
+    let minIndex = 0;
+
+    // 初始化数组和3D条形图
+    function initArray(customArray = null) {
+        // 清空现有对象
+        bars.forEach(bar => {
+            scene.remove(bar.mesh);
+        });
+        bars = [];
+
+        // 使用自定义数组或生成随机数组
+        if (customArray && customArray.length > 0) {
+            array = [...customArray];
+        } else {
+            const count = Math.min(Math.max(customArray ? customArray.length : 10, 5), 30);
+            array = Array.from({ length: count }, () => Math.floor(Math.random() * 20) + 1);
+        }
+
+        // 创建3D条形图
+        const shapeType = document.getElementById('shapeType').value;
+        const colorMode = document.getElementById('colorMode').value;
+
+        const spacing = 1.5;
+        const startX = -((array.length - 1) * spacing) / 2;
+
+        for (let i = 0; i < array.length; i++) {
+            let geometry;
+            const height = array[i];
+            const width = 1;
+            const depth = 1;
+
+            switch (shapeType) {
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(width * 0.8, 32, 32);
+                    break;
+                case 'cylinder':
+                    geometry = new THREE.CylinderGeometry(width * 0.5, width * 0.5, height, 32);
+                    break;
+                default: // box
+                    geometry = new THREE.BoxGeometry(width, height, depth);
+            }
+
+            let color;
+            switch (colorMode) {
+                case 'random':
+                    color = new THREE.Color(Math.random(), Math.random(), Math.random());
+                    break;
+                case 'monochrome':
+                    color = new THREE.Color(0x00f0ff);
+                    break;
+                default: // gradient
+                    const hue = (i / array.length) * 0.5 + 0.5;
+                    color = new THREE.Color().setHSL(hue, 0.9, 0.5);
+            }
+
+            const material = new THREE.MeshPhongMaterial({
+                color: color,
+                emissive: 0x00aaff,
+                emissiveIntensity: 0.1,
+                shininess: 100,
+                specular: 0x00ffff
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+
+            // 根据形状类型调整位置
+            if (shapeType === 'cylinder') {
+                mesh.position.set(startX + i * spacing, height / 2, 0);
+            } else if (shapeType === 'sphere') {
+                mesh.position.set(startX + i * spacing, height + 0.8, 0);
+            } else {
+                mesh.position.set(startX + i * spacing, height / 2, 0);
+            }
+
+            scene.add(mesh);
+            bars.push({ mesh, originalIndex: i, value: array[i] });
+        }
+
+        // 重置状态
+        currentIndex = 0;
+        minIndex = 0;
+        comparisonCount = 0;
+        swapCount = 0;
+        sortingComplete = false;
+        updateStatus();
+
+        document.getElementById('statusInfo').textContent = array.length > 0
+            ? "数据已加载，点击\"开始排序\"按钮开始"
+            : "请输入数据或随机生成数据";
+    }
+
+    // 更新状态显示
+    function updateStatus() {
+        document.getElementById('comparisonCount').textContent = `比较次数: ${comparisonCount}`;
+        document.getElementById('swapCount').textContent = `交换次数: ${swapCount}`;
+        document.getElementById('currentStep').textContent = sortingComplete
+            ? '排序完成'
+            : `当前步骤: 查找最小元素 (${currentIndex + 1}/${array.length})`;
+    }
+
+    // 选择排序算法
+    async function selectionSort() {
+        if (sortingComplete || array.length === 0) return;
+
+        isSorting = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('pauseBtn').disabled = false;
+        document.getElementById('resetBtn').disabled = true;
+
+        const len = array.length;
+
+        for (currentIndex = 0; currentIndex < len - 1; currentIndex++) {
+            minIndex = currentIndex;
+
+            // 高亮当前最小元素候选
+            await highlightBar(minIndex, 0xffff00); // 黄色表示当前最小候选
+
+            // 查找最小元素
+            for (let j = currentIndex + 1; j < len; j++) {
+                if (isPaused) {
+                    await waitForResume();
+                }
+
+                comparisonCount++;
+                updateStatus();
+
+                // 高亮当前比较的元素
+                await highlightBar(j, 0xff0000); // 红色表示正在比较的元素
+
+                if (array[j] < array[minIndex]) {
+                    // 取消之前最小元素的高亮
+                    if (minIndex !== currentIndex) {
+                        resetBarColor(minIndex);
+                    }
+
+                    minIndex = j;
+
+                    // 高亮新的最小元素
+                    await highlightBar(minIndex, 0xffff00); // 黄色表示新的最小候选
+                } else {
+                    // 重置当前比较元素的颜色
+                    resetBarColor(j);
+                }
+
+                await delay(500 / speed);
+            }
+
+            // 如果找到的最小元素不是当前位置的元素，则交换
+            if (minIndex !== currentIndex) {
+                // 交换数组元素
+                [array[currentIndex], array[minIndex]] = [array[minIndex], array[currentIndex]];
+                swapCount++;
+
+                // 动画交换3D对象
+                await swapBars(currentIndex, minIndex);
+
+                updateStatus();
+            }
+
+            // 重置最小元素的高亮
+            resetBarColor(minIndex);
+
+            // 高亮已排序部分的元素
+            await highlightBar(currentIndex, 0x00ff00); // 绿色表示已排序
+
+            await delay(500 / speed);
+        }
+
+        // 高亮最后一个元素（已排序）
+        await highlightBar(len - 1, 0x00ff00);
+
+        if (!isPaused) {
+            sortingComplete = true;
+            document.getElementById('statusInfo').textContent = "排序完成!";
+            await celebrateCompletion();
+        }
+
+        isSorting = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('resetBtn').disabled = false;
+    }
+
+    // 高亮单个条形
+    function highlightBar(index, colorHex) {
+        return new Promise(resolve => {
+            // 存储原始颜色
+            bars[index].originalColor = bars[index].mesh.material.color.clone();
+
+            // 设置为高亮颜色
+            bars[index].mesh.material.color.setHex(colorHex);
+            bars[index].mesh.material.emissive.setHex(colorHex);
+            bars[index].mesh.material.emissiveIntensity = 0.5;
+
+            setTimeout(resolve, 300 / speed);
+        });
+    }
+
+    // 重置条形颜色
+    function resetBarColor(index) {
+        if (bars[index].originalColor) {
+            bars[index].mesh.material.color.copy(bars[index].originalColor);
+        }
+        bars[index].mesh.material.emissive.setHex(0x00aaff);
+        bars[index].mesh.material.emissiveIntensity = 0.1;
+    }
+
+    // 交换条形位置
+    function swapBars(index1, index2) {
+        return new Promise(resolve => {
+            // 交换bars数组中的元素
+            [bars[index1], bars[index2]] = [bars[index2], bars[index1]];
+
+            // 获取目标位置
+            const shapeType = document.getElementById('shapeType').value;
+            const spacing = 1.5;
+            const startX = -((array.length - 1) * spacing) / 2;
+
+            const targetX1 = startX + index1 * spacing;
+            const targetX2 = startX + index2 * spacing;
+
+            // 创建动画
+            const duration = 500 / speed;
+            const startTime = Date.now();
+
+            function animateSwap() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // 使用缓动函数使动画更平滑
+                const easeProgress = easeInOutCubic(progress);
+
+                // 计算中间位置
+                const middleX1 = bars[index1].mesh.position.x + (targetX1 - bars[index1].mesh.position.x) * easeProgress;
+                const middleX2 = bars[index2].mesh.position.x + (targetX2 - bars[index2].mesh.position.x) * easeProgress;
+
+                // 更新位置
+                bars[index1].mesh.position.x = middleX1;
+                bars[index2].mesh.position.x = middleX2;
+
+                // 如果是球体或圆柱体，添加一些Y轴动画
+                if (shapeType === 'sphere' || shapeType === 'cylinder') {
+                    const jumpHeight = 0.5;
+                    const yOffset1 = Math.sin(progress * Math.PI) * jumpHeight;
+                    const yOffset2 = Math.sin(progress * Math.PI) * jumpHeight;
+
+                    if (shapeType === 'sphere') {
+                        bars[index1].mesh.position.y = bars[index1].value + 0.8 + yOffset1;
+                        bars[index2].mesh.position.y = bars[index2].value + 0.8 + yOffset2;
+                    } else {
+                        bars[index1].mesh.position.y = bars[index1].value / 2 + yOffset1;
+                        bars[index2].mesh.position.y = bars[index2].value / 2 + yOffset2;
+                    }
+                }
+
+                if (progress < 1) {
+                    animationId = requestAnimationFrame(animateSwap);
+                } else {
+                    // 确保最终位置准确
+                    bars[index1].mesh.position.x = targetX1;
+                    bars[index2].mesh.position.x = targetX2;
+
+                    if (shapeType === 'sphere') {
+                        bars[index1].mesh.position.y = bars[index1].value + 0.8;
+                        bars[index2].mesh.position.y = bars[index2].value + 0.8;
+                    } else if (shapeType === 'cylinder') {
+                        bars[index1].mesh.position.y = bars[index1].value / 2;
+                        bars[index2].mesh.position.y = bars[index2].value / 2;
+                    } else {
+                        bars[index1].mesh.position.y = bars[index1].value / 2;
+                        bars[index2].mesh.position.y = bars[index2].value / 2;
+                    }
+
+                    resolve();
+                }
+            }
+
+            animateSwap();
+        });
+    }
+
+    // 排序完成庆祝效果
+    function celebrateCompletion() {
+        return new Promise(resolve => {
+            let completed = 0;
+
+            bars.forEach((bar, index) => {
+                const originalY = bar.mesh.position.y;
+                const targetY = originalY + 2;
+
+                const duration = 500;
+                const startTime = Date.now();
+
+                function animateCelebration() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+
+                    if (progress < 0.5) {
+                        // 上升阶段
+                        bar.mesh.position.y = originalY + progress * 4;
+                    } else {
+                        // 下降阶段
+                        bar.mesh.position.y = targetY - (progress - 0.5) * 4;
+                    }
+
+                    // 旋转效果
+                    bar.mesh.rotation.y = progress * Math.PI * 2;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animateCelebration);
+                    } else {
+                        // 恢复原始位置和旋转
+                        bar.mesh.position.y = originalY;
+                        bar.mesh.rotation.y = 0;
+                        completed++;
+
+                        if (completed === bars.length) {
+                            resolve();
+                        }
+                    }
+                }
+
+                animateCelebration();
+            });
+        });
+    }
+
+    // 工具函数
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function waitForResume() {
+        return new Promise(resolve => {
+            const checkResume = setInterval(() => {
+                if (!isPaused) {
+                    clearInterval(checkResume);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    // 解析输入数据
+    function parseInputData(input) {
+        try {
+            // 去除空格，按逗号分割，转换为数字数组
+            const numbers = input.split(',')
+                .map(item => item.trim())
+                .filter(item => item !== '')
+                .map(item => {
+                    const num = parseFloat(item);
+                    if (isNaN(num)) throw new Error("包含非数字");
+                    return num;
+                });
+
+            // 限制在1-30之间，最多30个元素
+            return numbers
+                .map(num => Math.max(1, Math.min(num, 30)))
+                .slice(0, 30);
+        } catch (e) {
+            alert("输入格式错误，请输入用逗号分隔的数字，例如: 5,3,8,1,9");
+            return null;
+        }
+    }
+
+    // 事件监听器
+    document.getElementById('startBtn').addEventListener('click', () => {
+        if (array.length === 0) {
+            alert("请先输入或生成数据");
+            return;
+        }
+
+        if (!isSorting) {
+            document.getElementById('statusInfo').textContent = "排序进行中...";
+            selectionSort();
+        } else if (isPaused) {
+            isPaused = false;
+            document.getElementById('pauseBtn').textContent = "暂停";
+            document.getElementById('statusInfo').textContent = "排序继续...";
+            selectionSort();
+        }
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', () => {
+        if (isSorting && !isPaused) {
+            isPaused = true;
+            document.getElementById('pauseBtn').textContent = "继续";
+            document.getElementById('statusInfo').textContent = "排序已暂停";
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        }
+
+        isSorting = false;
+        isPaused = false;
+        sortingComplete = false;
+
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('pauseBtn').textContent = "暂停";
+        document.getElementById('statusInfo').textContent = "已重置，点击\"开始排序\"按钮开始";
+
+        initArray(array);
+    });
+
+    document.getElementById('applyData').addEventListener('click', () => {
+        const input = document.getElementById('dataInput').value;
+        if (!input.trim()) {
+            alert("请输入数据");
+            return;
+        }
+
+        const parsedData = parseInputData(input);
+        if (parsedData && parsedData.length > 0) {
+            initArray(parsedData);
+        }
+    });
+
+    document.getElementById('randomData').addEventListener('click', () => {
+        const count = Math.floor(Math.random() * 16) + 10; // 10-25个随机元素
+        initArray(Array.from({ length: count }, () => Math.floor(Math.random() * 20) + 1));
+        document.getElementById('dataInput').value = array.join(', ');
+    });
+
+    document.getElementById('sortSpeed').addEventListener('input', (e) => {
+        const speedText = ['很慢', '慢', '较慢', '稍慢', '中', '稍快', '较快', '快', '很快', '极快'][e.target.value - 1];
+        document.getElementById('speedValue').textContent = speedText;
+        speed = parseInt(e.target.value);
+    });
+
+    document.getElementById('shapeType').addEventListener('change', () => {
+        if (array.length > 0) {
+            initArray(array);
+        }
+    });
+
+    document.getElementById('colorMode').addEventListener('change', () => {
+        if (array.length > 0) {
+            initArray(array);
+        }
+    });
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+        camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    });
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // 初始化
+    animate();
+
+    // 初始随机数据
+    document.getElementById('randomData').click();
+</script>
+</body>
+</html>

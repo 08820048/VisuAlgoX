@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dijkstra算法3D可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --secondary: #0066ff;
+            --dark: #0a0e17;
+            --light: #e0f7ff;
+            --panel-bg: rgba(10, 14, 23, 0.8);
+            --border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 标题 */
+        .header {
+            text-align: center;
+            padding: 1rem;
+            background: linear-gradient(180deg, rgba(15,22,33,0.95) 0%, rgba(15,22,33,0.85) 100%);
+            backdrop-filter: blur(4px);
+            border-bottom: var(--border);
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            width: 300px;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-right: var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            border-bottom: var(--border);
+            padding-bottom: 15px;
+        }
+
+        .panel-title {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--dark);
+            border: none;
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            height: 5px;
+            background: rgba(0, 240, 255, 0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 240, 255, 0.8);
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--primary);
+            color: var(--light);
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--primary);
+            font-size: 0.9rem;
+        }
+
+        /* 可视化区域 */
+        .visualization {
+            flex: 1;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 科技风装饰元素 */
+        .tech-decoration {
+            position: absolute;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            pointer-events: none;
+        }
+
+        .tech-decoration:nth-child(1) {
+            top: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            transform: rotate(45deg);
+        }
+
+        .tech-decoration:nth-child(2) {
+            bottom: 40px;
+            left: 40px;
+            width: 60px;
+            height: 60px;
+            border-right-color: var(--primary);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 标题 -->
+<header class="header">
+    <h1>Dijkstra算法可视化</h1>
+</header>
+
+<!-- 主内容区域 -->
+<div class="main-content">
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <div class="panel-section">
+            <h3 class="panel-title">图设置</h3>
+            <label>节点数量:</label>
+            <input type="number" id="nodeCount" min="3" max="15" value="8">
+            <label>边密度:</label>
+            <input type="range" id="edgeDensity" min="1" max="10" value="5">
+            <button id="generateGraph">生成随机图</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">算法控制</h3>
+            <label>起点节点:</label>
+            <input type="number" id="startNode" min="0" value="0">
+            <label>终点节点:</label>
+            <input type="number" id="endNode" min="0" value="4">
+            <button id="startBtn">开始算法</button>
+            <button id="pauseBtn" disabled>暂停</button>
+            <button id="resetBtn">重置</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">参数设置</h3>
+            <label>动画速度: <span id="speedValue">中</span></label>
+            <input type="range" id="animationSpeed" min="1" max="10" value="5">
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">状态信息</h3>
+            <div class="status" id="statusInfo">
+                请生成图并设置起点终点
+            </div>
+            <div id="currentStep">当前步骤: -</div>
+            <div id="visitedCount">已访问节点: 0</div>
+            <div id="distanceInfo">最短距离: -</div>
+        </div>
+    </div>
+
+    <!-- 可视化区域 -->
+    <div class="visualization">
+        <div class="tech-decoration"></div>
+        <div class="tech-decoration"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+
+<script>
+    // 初始化Three.js场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0e17);
+
+    // 添加环境光和定向光
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0x00f0ff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // 初始化相机
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 20, 40);
+
+    // 初始化渲染器
+    const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('canvas'),
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // 添加轨道控制器
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 算法状态变量
+    let isRunning = false;
+    let isPaused = false;
+    let animationComplete = false;
+    let animationSpeed = 5;
+    let animationId = null;
+
+    // 图数据结构
+    let graph = {
+        nodes: [],
+        edges: [],
+        adjacencyList: []
+    };
+
+    // 可视化元素
+    let nodeMeshes = [];
+    let edgeLines = [];
+    let nodeLabels = [];
+    let edgeLabels = [];
+
+    // 算法变量
+    let distances = [];
+    let previousNodes = [];
+    let visited = [];
+    let unvisited = [];
+    let currentStep = 0;
+    let shortestPath = [];
+
+    // 生成随机图
+    function generateRandomGraph(nodeCount, edgeDensity) {
+        // 清除现有图形
+        clearGraph();
+
+        // 创建节点
+        const radius = 10;
+        for (let i = 0; i < nodeCount; i++) {
+            const angle = (i / nodeCount) * Math.PI * 2;
+            const x = radius * Math.cos(angle);
+            const z = radius * Math.sin(angle);
+            const y = Math.random() * 2 - 1; // 轻微高度变化
+
+            graph.nodes.push({ id: i, x, y, z });
+            graph.adjacencyList[i] = [];
+        }
+
+        // 创建边
+        const maxEdges = Math.min(nodeCount * (nodeCount - 1) / 2, nodeCount * 3);
+        const edgeCount = Math.floor(maxEdges * edgeDensity / 10);
+
+        // 确保图是连通的
+        for (let i = 1; i < nodeCount; i++) {
+            const j = Math.floor(Math.random() * i);
+            const weight = Math.floor(Math.random() * 9) + 1;
+            graph.edges.push({ from: j, to: i, weight });
+            graph.adjacencyList[j].push({ node: i, weight });
+            graph.adjacencyList[i].push({ node: j, weight });
+        }
+
+        // 添加额外随机边
+        for (let k = 0; k < edgeCount - (nodeCount - 1); k++) {
+            let from, to;
+            do {
+                from = Math.floor(Math.random() * nodeCount);
+                to = Math.floor(Math.random() * nodeCount);
+            } while (from === to || edgeExists(from, to));
+
+            const weight = Math.floor(Math.random() * 9) + 1;
+            graph.edges.push({ from, to, weight });
+            graph.adjacencyList[from].push({ node: to, weight });
+            graph.adjacencyList[to].push({ node: from, weight });
+        }
+
+        // 渲染图
+        renderGraph();
+
+        // 更新状态
+        document.getElementById('statusInfo').textContent = "图已生成，请设置起点终点";
+        document.getElementById('startNode').max = nodeCount - 1;
+        document.getElementById('endNode').max = nodeCount - 1;
+        document.getElementById('endNode').value = Math.min(4, nodeCount - 1);
+    }
+
+    // 检查边是否已存在
+    function edgeExists(from, to) {
+        return graph.edges.some(edge =>
+            (edge.from === from && edge.to === to) ||
+            (edge.from === to && edge.to === from)
+        );
+    }
+
+    // 清除图形
+    function clearGraph() {
+        // 移除所有节点和边
+        nodeMeshes.forEach(mesh => scene.remove(mesh));
+        edgeLines.forEach(line => scene.remove(line));
+
+        // 重置数据结构
+        graph = { nodes: [], edges: [], adjacencyList: [] };
+        nodeMeshes = [];
+        edgeLines = [];
+        nodeLabels = [];
+        edgeLabels = [];
+    }
+
+    // 渲染图
+    function renderGraph() {
+        // 创建节点
+        graph.nodes.forEach(node => {
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x00f0ff,
+                emissive: 0x00aaff,
+                emissiveIntensity: 0.1,
+                shininess: 100
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(node.x, node.y, node.z);
+            scene.add(sphere);
+            nodeMeshes.push(sphere);
+        });
+
+        // 创建边
+        graph.edges.forEach(edge => {
+            const fromNode = graph.nodes[edge.from];
+            const toNode = graph.nodes[edge.to];
+
+            const geometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(fromNode.x, fromNode.y, fromNode.z),
+                new THREE.Vector3(toNode.x, toNode.y, toNode.z)
+            ]);
+
+            const material = new THREE.LineBasicMaterial({
+                color: 0x00aaff,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            edgeLines.push(line);
+        });
+    }
+
+    // 高亮节点
+    function highlightNode(nodeId, color) {
+        nodeMeshes[nodeId].material.color.setHex(color);
+        nodeMeshes[nodeId].material.emissive.setHex(color);
+        nodeMeshes[nodeId].material.emissiveIntensity = 0.5;
+    }
+
+    // 重置节点颜色
+    function resetNodeColor(nodeId) {
+        nodeMeshes[nodeId].material.color.setHex(0x00f0ff);
+        nodeMeshes[nodeId].material.emissive.setHex(0x00aaff);
+        nodeMeshes[nodeId].material.emissiveIntensity = 0.1;
+    }
+
+    // 高亮边
+    function highlightEdge(from, to, color) {
+        const edgeIndex = graph.edges.findIndex(edge =>
+            (edge.from === from && edge.to === to) ||
+            (edge.from === to && edge.to === from)
+        );
+
+        if (edgeIndex !== -1) {
+            edgeLines[edgeIndex].material.color.setHex(color);
+            edgeLines[edgeIndex].material.opacity = 1;
+        }
+    }
+
+    // 重置边颜色
+    function resetEdgeColor(from, to) {
+        const edgeIndex = graph.edges.findIndex(edge =>
+            (edge.from === from && edge.to === to) ||
+            (edge.from === to && edge.to === from)
+        );
+
+        if (edgeIndex !== -1) {
+            edgeLines[edgeIndex].material.color.setHex(0x00aaff);
+            edgeLines[edgeIndex].material.opacity = 0.6;
+        }
+    }
+
+    // 更新状态显示
+    function updateStatus() {
+        document.getElementById('currentStep').textContent = `当前步骤: ${currentStep}`;
+        document.getElementById('visitedCount').textContent = `已访问节点: ${visited.length}`;
+
+        const endNode = parseInt(document.getElementById('endNode').value);
+        if (distances[endNode] !== Infinity) {
+            document.getElementById('distanceInfo').textContent = `最短距离: ${distances[endNode]}`;
+        } else {
+            document.getElementById('distanceInfo').textContent = `最短距离: 不可达`;
+        }
+    }
+
+    // Dijkstra算法
+    async function runDijkstra() {
+        if (animationComplete || graph.nodes.length === 0) return;
+
+        const startNode = parseInt(document.getElementById('startNode').value);
+        const endNode = parseInt(document.getElementById('endNode').value);
+
+        // 初始化算法变量
+        distances = new Array(graph.nodes.length).fill(Infinity);
+        previousNodes = new Array(graph.nodes.length).fill(null);
+        visited = [];
+        unvisited = [...graph.nodes.map(node => node.id)];
+        shortestPath = [];
+
+        distances[startNode] = 0;
+        currentStep = 0;
+
+        isRunning = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('pauseBtn').disabled = false;
+        document.getElementById('resetBtn').disabled = true;
+
+        // 高亮起点
+        highlightNode(startNode, 0x00ff00); // 绿色表示起点
+        await delay(1000 / animationSpeed);
+
+        while (unvisited.length > 0) {
+            if (isPaused) {
+                await waitForResume();
+            }
+
+            currentStep++;
+            updateStatus();
+
+            // 找到未访问节点中距离最小的节点
+            let currentNode = unvisited[0];
+            let minDistance = distances[currentNode];
+
+            for (const nodeId of unvisited) {
+                if (distances[nodeId] < minDistance) {
+                    currentNode = nodeId;
+                    minDistance = distances[nodeId];
+                }
+            }
+
+            // 高亮当前节点
+            highlightNode(currentNode, 0xffff00); // 黄色表示当前节点
+            await delay(500 / animationSpeed);
+
+            // 如果当前节点是终点，提前结束
+            if (currentNode === endNode) {
+                break;
+            }
+
+            // 访问当前节点的所有邻居
+            for (const neighbor of graph.adjacencyList[currentNode]) {
+                const neighborNode = neighbor.node;
+                const edgeWeight = neighbor.weight;
+
+                // 高亮当前边
+                highlightEdge(currentNode, neighborNode, 0xff0000); // 红色表示正在处理的边
+                await delay(500 / animationSpeed);
+
+                // 计算新距离
+                const newDistance = distances[currentNode] + edgeWeight;
+
+                if (newDistance < distances[neighborNode]) {
+                    distances[neighborNode] = newDistance;
+                    previousNodes[neighborNode] = currentNode;
+
+                    // 高亮更新的节点
+                    highlightNode(neighborNode, 0xff00ff); // 紫色表示距离更新
+                    await delay(500 / animationSpeed);
+                    resetNodeColor(neighborNode);
+                }
+
+                // 重置边颜色
+                resetEdgeColor(currentNode, neighborNode);
+            }
+
+            // 标记当前节点为已访问
+            visited.push(currentNode);
+            unvisited = unvisited.filter(id => id !== currentNode);
+
+            // 高亮已访问节点
+            highlightNode(currentNode, 0x00aaff); // 蓝色表示已访问
+            await delay(500 / animationSpeed);
+        }
+
+        // 重建最短路径
+        if (distances[endNode] !== Infinity) {
+            let currentNode = endNode;
+            shortestPath = [currentNode];
+
+            while (currentNode !== startNode) {
+                currentNode = previousNodes[currentNode];
+                shortestPath.unshift(currentNode);
+            }
+
+            // 高亮最短路径
+            for (let i = 0; i < shortestPath.length - 1; i++) {
+                const from = shortestPath[i];
+                const to = shortestPath[i + 1];
+
+                highlightNode(from, 0x00ff00); // 绿色
+                highlightNode(to, 0x00ff00); // 绿色
+                highlightEdge(from, to, 0x00ff00); // 绿色
+
+                await delay(500 / animationSpeed);
+            }
+        }
+
+        // 高亮终点
+        highlightNode(endNode, 0xff0000); // 红色表示终点
+
+        if (!isPaused) {
+            animationComplete = true;
+            document.getElementById('statusInfo').textContent = "算法执行完成!";
+        }
+
+        isRunning = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('resetBtn').disabled = false;
+    }
+
+    // 工具函数
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function waitForResume() {
+        return new Promise(resolve => {
+            const checkResume = setInterval(() => {
+                if (!isPaused) {
+                    clearInterval(checkResume);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    // 重置算法状态
+    function resetAlgorithm() {
+        // 重置所有节点和边的颜色
+        graph.nodes.forEach((_, i) => resetNodeColor(i));
+        graph.edges.forEach(edge => resetEdgeColor(edge.from, edge.to));
+
+        // 重置算法状态
+        isRunning = false;
+        isPaused = false;
+        animationComplete = false;
+
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('pauseBtn').textContent = "暂停";
+        document.getElementById('statusInfo').textContent = "算法已重置，请设置起点终点";
+
+        currentStep = 0;
+        updateStatus();
+    }
+
+    // 事件监听器
+    document.getElementById('generateGraph').addEventListener('click', () => {
+        const nodeCount = parseInt(document.getElementById('nodeCount').value);
+        const edgeDensity = parseInt(document.getElementById('edgeDensity').value);
+        generateRandomGraph(nodeCount, edgeDensity);
+        resetAlgorithm();
+    });
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+        if (graph.nodes.length === 0) {
+            alert("请先生成图");
+            return;
+        }
+
+        if (!isRunning) {
+            document.getElementById('statusInfo').textContent = "算法执行中...";
+            runDijkstra();
+        } else if (isPaused) {
+            isPaused = false;
+            document.getElementById('pauseBtn').textContent = "暂停";
+            document.getElementById('statusInfo').textContent = "算法继续执行...";
+            runDijkstra();
+        }
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', () => {
+        if (isRunning && !isPaused) {
+            isPaused = true;
+            document.getElementById('pauseBtn').textContent = "继续";
+            document.getElementById('statusInfo').textContent = "算法已暂停";
+        }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', resetAlgorithm);
+
+    document.getElementById('animationSpeed').addEventListener('input', (e) => {
+        const speedText = ['很慢', '慢', '较慢', '稍慢', '中', '稍快', '较快', '快', '很快', '极快'][e.target.value - 1];
+        document.getElementById('speedValue').textContent = speedText;
+        animationSpeed = parseInt(e.target.value);
+    });
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+        camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    });
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // 初始化
+    animate();
+
+    // 初始生成图
+    document.getElementById('generateGraph').click();
+</script>
+</body>
+</html>
