@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AABB碰撞检测3D可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --secondary: #0066ff;
+            --dark: #0a0e17;
+            --light: #e0f7ff;
+            --panel-bg: rgba(10, 14, 23, 0.8);
+            --border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 标题 */
+        .header {
+            text-align: center;
+            padding: 1rem;
+            background: linear-gradient(180deg, rgba(15,22,33,0.95) 0%, rgba(15,22,33,0.85) 100%);
+            backdrop-filter: blur(4px);
+            border-bottom: var(--border);
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            width: 300px;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-right: var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            border-bottom: var(--border);
+            padding-bottom: 15px;
+        }
+
+        .panel-title {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--dark);
+            border: none;
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            height: 5px;
+            background: rgba(0, 240, 255, 0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 240, 255, 0.8);
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--primary);
+            font-size: 0.9rem;
+        }
+
+        /* 可视化区域 */
+        .visualization {
+            flex: 1;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 科技风装饰元素 */
+        .tech-decoration {
+            position: absolute;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            pointer-events: none;
+        }
+
+        .tech-decoration:nth-child(1) {
+            top: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            transform: rotate(45deg);
+        }
+
+        .tech-decoration:nth-child(2) {
+            bottom: 40px;
+            left: 40px;
+            width: 60px;
+            height: 60px;
+            border-right-color: var(--primary);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 标题 -->
+<header class="header">
+    <h1>AABB碰撞检测可视化</h1>
+</header>
+
+<!-- 主内容区域 -->
+<div class="main-content">
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <div class="panel-section">
+            <h3 class="panel-title">AABB设置</h3>
+            <label>盒子1 X位置: <span id="box1XValue">0</span></label>
+            <input type="range" id="box1X" min="-5" max="5" value="0" step="0.1">
+            <label>盒子1 Y位置: <span id="box1YValue">0</span></label>
+            <input type="range" id="box1Y" min="-5" max="5" value="0" step="0.1">
+            <label>盒子1 Z位置: <span id="box1ZValue">0</span></label>
+            <input type="range" id="box1Z" min="-5" max="5" value="0" step="0.1">
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">AABB设置</h3>
+            <label>盒子2 X位置: <span id="box2XValue">2</span></label>
+            <input type="range" id="box2X" min="-5" max="5" value="2" step="0.1">
+            <label>盒子2 Y位置: <span id="box2YValue">0</span></label>
+            <input type="range" id="box2Y" min="-5" max="5" value="0" step="0.1">
+            <label>盒子2 Z位置: <span id="box2ZValue">0</span></label>
+            <input type="range" id="box2Z" min="-5" max="5" value="0" step="0.1">
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">碰撞检测</h3>
+            <button id="checkCollision">检测碰撞</button>
+            <button id="autoMove">自动移动</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">状态信息</h3>
+            <div class="status" id="statusInfo">
+                调整盒子位置并检测碰撞
+            </div>
+            <div id="collisionResult">碰撞状态: 未检测</div>
+            <div id="box1Info">盒子1: (0, 0, 0)</div>
+            <div id="box2Info">盒子2: (2, 0, 0)</div>
+        </div>
+    </div>
+
+    <!-- 可视化区域 -->
+    <div class="visualization">
+        <div class="tech-decoration"></div>
+        <div class="tech-decoration"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+
+<script>
+    // 初始化Three.js场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0e17);
+
+    // 添加环境光和定向光
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0x00f0ff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // 添加辅助网格
+    const gridHelper = new THREE.GridHelper(20, 20, 0x00aaff, 0x0066ff);
+    gridHelper.position.y = -3;
+    scene.add(gridHelper);
+
+    // 初始化相机
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / window.innerHeight, 0.1, 1000);
+    camera.position.set(10, 10, 10);
+    camera.lookAt(0, 0, 0);
+
+    // 初始化渲染器
+    const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('canvas'),
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // 添加轨道控制器
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // AABB盒子
+    let box1 = {
+        position: new THREE.Vector3(0, 0, 0),
+        size: new THREE.Vector3(2, 2, 2),
+        mesh: null,
+        edges: null
+    };
+
+    let box2 = {
+        position: new THREE.Vector3(2, 0, 0),
+        size: new THREE.Vector3(2, 2, 2),
+        mesh: null,
+        edges: null
+    };
+
+    // 创建AABB盒子
+    function createAABBBox(box, color) {
+        // 创建盒子几何体
+        const geometry = new THREE.BoxGeometry(box.size.x, box.size.y, box.size.z);
+        const material = new THREE.MeshPhongMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.7,
+            emissive: color,
+            emissiveIntensity: 0.1,
+            shininess: 100
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(box.position);
+        scene.add(mesh);
+        box.mesh = mesh;
+
+        // 创建边缘线框
+        const edgesGeometry = new THREE.EdgesGeometry(geometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            linewidth: 2
+        });
+
+        const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        edges.position.copy(box.position);
+        scene.add(edges);
+        box.edges = edges;
+    }
+
+    // 更新AABB盒子位置
+    function updateAABBBox(box) {
+        box.mesh.position.copy(box.position);
+        box.edges.position.copy(box.position);
+    }
+
+    // AABB碰撞检测
+    function checkAABBCollision(boxA, boxB) {
+        return (
+            boxA.position.x - boxA.size.x / 2 < boxB.position.x + boxB.size.x / 2 &&
+            boxA.position.x + boxA.size.x / 2 > boxB.position.x - boxB.size.x / 2 &&
+            boxA.position.y - boxA.size.y / 2 < boxB.position.y + boxB.size.y / 2 &&
+            boxA.position.y + boxA.size.y / 2 > boxB.position.y - boxB.size.y / 2 &&
+            boxA.position.z - boxA.size.z / 2 < boxB.position.z + boxB.size.z / 2 &&
+            boxA.position.z + boxA.size.z / 2 > boxB.position.z - boxB.size.z / 2
+        );
+    }
+
+    // 高亮碰撞状态
+    function highlightCollision(isColliding) {
+        if (isColliding) {
+            // 碰撞时显示红色
+            box1.mesh.material.color.setHex(0xff0000);
+            box2.mesh.material.color.setHex(0xff0000);
+            document.getElementById('collisionResult').textContent = "碰撞状态: 碰撞中!";
+            document.getElementById('collisionResult').style.color = "#ff0000";
+            document.getElementById('statusInfo').textContent = "检测到碰撞!";
+        } else {
+            // 未碰撞时恢复原色
+            box1.mesh.material.color.setHex(0x00f0ff);
+            box2.mesh.material.color.setHex(0x00ff00);
+            document.getElementById('collisionResult').textContent = "碰撞状态: 未碰撞";
+            document.getElementById('collisionResult').style.color = "#00f0ff";
+            document.getElementById('statusInfo').textContent = "未检测到碰撞";
+        }
+    }
+
+    // 更新盒子信息显示
+    function updateBoxInfo() {
+        document.getElementById('box1Info').textContent =
+            `盒子1: (${box1.position.x.toFixed(1)}, ${box1.position.y.toFixed(1)}, ${box1.position.z.toFixed(1)})`;
+        document.getElementById('box2Info').textContent =
+            `盒子2: (${box2.position.x.toFixed(1)}, ${box2.position.y.toFixed(1)}, ${box2.position.z.toFixed(1)})`;
+
+        // 实时检测碰撞
+        const isColliding = checkAABBCollision(box1, box2);
+        highlightCollision(isColliding);
+    }
+
+    // 自动移动盒子
+    let autoMoveInterval = null;
+    function startAutoMove() {
+        if (autoMoveInterval) clearInterval(autoMoveInterval);
+
+        let direction = 1;
+        autoMoveInterval = setInterval(() => {
+            box2.position.x += 0.05 * direction;
+
+            // 反转方向
+            if (box2.position.x > 5) direction = -1;
+            if (box2.position.x < -5) direction = 1;
+
+            updateAABBBox(box2);
+            updateBoxInfo();
+        }, 50);
+    }
+
+    // 初始化AABB盒子
+    createAABBBox(box1, 0x00f0ff); // 蓝色盒子
+    createAABBBox(box2, 0x00ff00); // 绿色盒子
+
+    // 事件监听器
+    document.getElementById('box1X').addEventListener('input', (e) => {
+        box1.position.x = parseFloat(e.target.value);
+        document.getElementById('box1XValue').textContent = box1.position.x.toFixed(1);
+        updateAABBBox(box1);
+        updateBoxInfo();
+    });
+
+    document.getElementById('box1Y').addEventListener('input', (e) => {
+        box1.position.y = parseFloat(e.target.value);
+        document.getElementById('box1YValue').textContent = box1.position.y.toFixed(1);
+        updateAABBBox(box1);
+        updateBoxInfo();
+    });
+
+    document.getElementById('box1Z').addEventListener('input', (e) => {
+        box1.position.z = parseFloat(e.target.value);
+        document.getElementById('box1ZValue').textContent = box1.position.z.toFixed(1);
+        updateAABBBox(box1);
+        updateBoxInfo();
+    });
+
+    document.getElementById('box2X').addEventListener('input', (e) => {
+        box2.position.x = parseFloat(e.target.value);
+        document.getElementById('box2XValue').textContent = box2.position.x.toFixed(1);
+        updateAABBBox(box2);
+        updateBoxInfo();
+    });
+
+    document.getElementById('box2Y').addEventListener('input', (e) => {
+        box2.position.y = parseFloat(e.target.value);
+        document.getElementById('box2YValue').textContent = box2.position.y.toFixed(1);
+        updateAABBBox(box2);
+        updateBoxInfo();
+    });
+
+    document.getElementById('box2Z').addEventListener('input', (e) => {
+        box2.position.z = parseFloat(e.target.value);
+        document.getElementById('box2ZValue').textContent = box2.position.z.toFixed(1);
+        updateAABBBox(box2);
+        updateBoxInfo();
+    });
+
+    document.getElementById('checkCollision').addEventListener('click', () => {
+        const isColliding = checkAABBCollision(box1, box2);
+        highlightCollision(isColliding);
+        document.getElementById('statusInfo').textContent = isColliding ? "检测到碰撞!" : "未检测到碰撞";
+    });
+
+    document.getElementById('autoMove').addEventListener('click', startAutoMove);
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+        camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    });
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // 初始化
+    animate();
+    updateBoxInfo();
+</script>
+</body>
+</html>

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 碰撞检测学习助手 - 带连线功能</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 300px;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 300px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .collision-info {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+        }
+        .object-info {
+            margin-bottom: 5px;
+        }
+        select {
+            padding: 5px;
+            margin: 5px 0;
+            width: 100%;
+        }
+        .control-group {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        .control-group h4 {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div id="info">
+        <h2>3D 碰撞检测模拟工具</h2>
+        <p>使用鼠标拖动物体，观察碰撞检测结果。</p>
+        <div class="collision-info" id="collisionInfo">
+            无碰撞发生
+        </div>
+        <div class="object-info" id="objectInfo">
+            当前选中: 无
+        </div>
+        <div class="object-info" id="connectionInfo">
+            当前连接: 无
+        </div>
+    </div>
+    <div id="controls">
+        <div class="control-group">
+            <h3>物体操作</h3>
+            <select id="objectType">
+                <option value="box">立方体</option>
+                <option value="sphere">球体</option>
+                <option value="cylinder">圆柱体</option>
+                <option value="cone">圆锥体</option>
+                <option value="torus">圆环体</option>
+            </select>
+            <button id="addObject">添加物体</button>
+            <button id="removeSelected">删除选中</button>
+        </div>
+
+        <div class="control-group">
+            <h3>显示设置</h3>
+            <button id="toggleCollision">切换碰撞检测</button>
+            <button id="toggleBoundingBox">切换包围盒显示</button>
+        </div>
+
+        <div class="control-group">
+            <h3>连线功能</h3>
+            <button id="connectObjects">连接选中物体</button>
+            <button id="disconnectObjects">断开连接</button>
+            <select id="connectionType">
+                <option value="center">中心点连线</option>
+                <option value="boundingBox">包围盒连线</option>
+            </select>
+            <div>
+                <label>
+                    <input type="color" id="lineColor" value="#00ffff">
+                    连线颜色
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/DragControls.js"></script>
+<script>
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 添加光源
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // 添加地面
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x999999,
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // 添加网格辅助
+    const gridHelper = new THREE.GridHelper(20, 20);
+    scene.add(gridHelper);
+
+    // 添加坐标轴辅助
+    const axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
+
+    // 物体集合和状态
+    const objects = [];
+    let collisionDetectionEnabled = true;
+    let showBoundingBoxes = false;
+    let selectedObject = null;
+    let connectionLine = null;
+    let connectedObjects = [];
+
+    // 创建几何体工厂函数
+    function createGeometry(type) {
+        let geometry;
+        const size = 1 + Math.random() * 0.5;
+
+        switch(type) {
+            case 'box':
+                geometry = new THREE.BoxGeometry(size, size, size);
+                break;
+            case 'sphere':
+                geometry = new THREE.SphereGeometry(size / 2, 32, 32);
+                break;
+            case 'cylinder':
+                geometry = new THREE.CylinderGeometry(size / 2, size / 2, size, 32);
+                break;
+            case 'cone':
+                geometry = new THREE.ConeGeometry(size / 2, size, 32);
+                break;
+            case 'torus':
+                geometry = new THREE.TorusGeometry(size / 2, size / 4, 16, 32);
+                break;
+            default:
+                geometry = new THREE.BoxGeometry(size, size, size);
+        }
+
+        return geometry;
+    }
+
+    // 创建随机颜色的材质
+    function createRandomMaterial() {
+        const hue = Math.random();
+        const saturation = 0.7;
+        const lightness = 0.5;
+        const color = new THREE.Color().setHSL(hue, saturation, lightness);
+
+        return new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.4,
+            metalness: 0.2,
+            transparent: true,
+            opacity: 0.8
+        });
+    }
+
+    // 添加新物体
+    function addObject(type) {
+        const geometry = createGeometry(type);
+        const material = createRandomMaterial();
+        const mesh = new THREE.Mesh(geometry, material);
+
+        // 随机位置，确保在地面上方
+        mesh.position.x = (Math.random() - 0.5) * 10;
+        mesh.position.y = 2 + Math.random() * 3;
+        mesh.position.z = (Math.random() - 0.5) * 10;
+
+        // 随机旋转
+        mesh.rotation.x = Math.random() * Math.PI;
+        mesh.rotation.y = Math.random() * Math.PI;
+
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        // 添加自定义属性用于碰撞检测
+        mesh.userData = {
+            type: type,
+            originalColor: material.color.clone(),
+            colliding: false,
+            boundingBox: new THREE.Box3().setFromObject(mesh),
+            boundingSphere: new THREE.Sphere()
+        };
+
+        // 更新包围球
+        mesh.geometry.computeBoundingSphere();
+        mesh.userData.boundingSphere.copy(mesh.geometry.boundingSphere);
+        mesh.userData.boundingSphere.center.copy(mesh.position);
+
+        scene.add(mesh);
+        objects.push(mesh);
+
+        // 如果需要显示包围盒，则创建
+        if (showBoundingBoxes) {
+            createBoundingBoxHelper(mesh);
+        }
+
+        return mesh;
+    }
+
+    // 创建包围盒辅助对象
+    function createBoundingBoxHelper(mesh) {
+        if (mesh.userData.boundingBoxHelper) {
+            scene.remove(mesh.userData.boundingBoxHelper);
+        }
+
+        const helper = new THREE.Box3Helper(mesh.userData.boundingBox, 0xffff00);
+        helper.name = 'boundingBoxHelper';
+        mesh.userData.boundingBoxHelper = helper;
+        scene.add(helper);
+    }
+
+    // 更新所有物体的包围盒和包围球
+    function updateBoundingVolumes() {
+        objects.forEach(obj => {
+            // 更新包围盒
+            obj.userData.boundingBox.setFromObject(obj);
+
+            // 更新包围球
+            obj.userData.boundingSphere.center.copy(obj.position);
+
+            // 如果有包围盒辅助对象，更新它
+            if (obj.userData.boundingBoxHelper) {
+                obj.userData.boundingBoxHelper.box.copy(obj.userData.boundingBox);
+            }
+        });
+
+        // 如果有连接线，更新它
+        updateConnectionLine();
+    }
+
+    // 检测碰撞
+    function checkCollisions() {
+        let collisionDetected = false;
+        let collisionText = "无碰撞发生";
+
+        // 重置所有物体的碰撞状态和颜色
+        objects.forEach(obj => {
+            if (obj.userData.colliding) {
+                obj.material.color.setHex(0x00ff00); // 绿色表示之前碰撞
+            } else {
+                obj.material.color.copy(obj.userData.originalColor);
+            }
+            obj.userData.colliding = false;
+        });
+
+        if (!collisionDetectionEnabled) {
+            document.getElementById('collisionInfo').textContent = "碰撞检测已禁用";
+            return;
+        }
+
+        // 检测所有物体之间的碰撞
+        for (let i = 0; i < objects.length; i++) {
+            for (let j = i + 1; j < objects.length; j++) {
+                const obj1 = objects[i];
+                const obj2 = objects[j];
+
+                // 首先使用包围球进行快速检测
+                const sphere1 = obj1.userData.boundingSphere;
+                const sphere2 = obj2.userData.boundingSphere;
+
+                if (sphere1.intersectsSphere(sphere2)) {
+                    // 如果包围球相交，再进行精确的包围盒检测
+                    if (obj1.userData.boundingBox.intersectsBox(obj2.userData.boundingBox)) {
+                        // 标记为碰撞状态
+                        obj1.userData.colliding = true;
+                        obj2.userData.colliding = true;
+                        obj1.material.color.setHex(0xff0000); // 红色表示碰撞
+                        obj2.material.color.setHex(0xff0000);
+
+                        collisionDetected = true;
+
+                        // 更新碰撞信息文本
+                        collisionText = `碰撞: ${obj1.userData.type} 和 ${obj2.userData.type}`;
+                    }
+                }
+            }
+        }
+
+        document.getElementById('collisionInfo').textContent = collisionText;
+    }
+
+    // 创建连接线
+    function createConnectionLine(obj1, obj2) {
+        // 如果已有连接线，先移除
+        if (connectionLine) {
+            scene.remove(connectionLine);
+            connectionLine = null;
+        }
+
+        // 获取连接类型
+        const connectionType = document.getElementById('connectionType').value;
+        const lineColor = document.getElementById('lineColor').value;
+
+        let point1, point2;
+
+        if (connectionType === 'center') {
+            // 连接物体中心点
+            point1 = obj1.position.clone();
+            point2 = obj2.position.clone();
+        } else {
+            // 连接包围盒最近点
+            point1 = new THREE.Vector3();
+            point2 = new THREE.Vector3();
+            obj1.userData.boundingBox.getCenter(point1);
+            obj2.userData.boundingBox.getCenter(point2);
+        }
+
+        // 创建线几何体
+        const geometry = new THREE.BufferGeometry().setFromPoints([point1, point2]);
+        const material = new THREE.LineBasicMaterial({
+            color: new THREE.Color(lineColor),
+            linewidth: 2
+        });
+
+        connectionLine = new THREE.Line(geometry, material);
+        scene.add(connectionLine);
+
+        // 存储连接的物体
+        connectedObjects = [obj1, obj2];
+        document.getElementById('connectionInfo').textContent =
+            `当前连接: ${obj1.userData.type} 和 ${obj2.userData.type} (${connectionType})`;
+    }
+
+    // 更新连接线
+    function updateConnectionLine() {
+        if (!connectionLine || connectedObjects.length !== 2) return;
+
+        const obj1 = connectedObjects[0];
+        const obj2 = connectedObjects[1];
+        const connectionType = document.getElementById('connectionType').value;
+
+        let point1, point2;
+
+        if (connectionType === 'center') {
+            // 连接物体中心点
+            point1 = obj1.position.clone();
+            point2 = obj2.position.clone();
+        } else {
+            // 连接包围盒最近点
+            point1 = new THREE.Vector3();
+            point2 = new THREE.Vector3();
+            obj1.userData.boundingBox.getCenter(point1);
+            obj2.userData.boundingBox.getCenter(point2);
+        }
+
+        // 更新线几何体
+        connectionLine.geometry.setFromPoints([point1, point2]);
+        connectionLine.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // 移除连接线
+    function removeConnectionLine() {
+        if (connectionLine) {
+            scene.remove(connectionLine);
+            connectionLine = null;
+            connectedObjects = [];
+            document.getElementById('connectionInfo').textContent = "当前连接: 无";
+        }
+    }
+
+    // 初始化一些示例物体
+    addObject('box');
+    addObject('sphere');
+    addObject('cylinder');
+
+    // 设置轨道控制器
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.05;
+
+    // 设置拖拽控制器
+    const dragControls = new THREE.DragControls(objects, camera, renderer.domElement);
+    dragControls.addEventListener('dragstart', function (event) {
+        orbitControls.enabled = false;
+        selectedObject = event.object;
+        document.getElementById('objectInfo').textContent = `当前选中: ${selectedObject.userData.type}`;
+    });
+    dragControls.addEventListener('dragend', function () {
+        orbitControls.enabled = true;
+    });
+    dragControls.addEventListener('drag', function () {
+        updateBoundingVolumes();
+        checkCollisions();
+    });
+
+    // 窗口大小调整
+    window.addEventListener('resize', function () {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 添加按钮事件监听
+    document.getElementById('addObject').addEventListener('click', function () {
+        const type = document.getElementById('objectType').value;
+        addObject(type);
+        updateBoundingVolumes();
+        checkCollisions();
+    });
+
+    document.getElementById('removeSelected').addEventListener('click', function () {
+        if (selectedObject) {
+            // 如果被删除的物体是连接物体之一，移除连接线
+            if (connectedObjects.includes(selectedObject)) {
+                removeConnectionLine();
+            }
+
+            const index = objects.indexOf(selectedObject);
+            if (index !== -1) {
+                objects.splice(index, 1);
+                scene.remove(selectedObject);
+
+                // 如果有包围盒辅助对象，也移除它
+                if (selectedObject.userData.boundingBoxHelper) {
+                    scene.remove(selectedObject.userData.boundingBoxHelper);
+                }
+
+                selectedObject = null;
+                document.getElementById('objectInfo').textContent = "当前选中: 无";
+                checkCollisions();
+            }
+        }
+    });
+
+    document.getElementById('toggleCollision').addEventListener('click', function () {
+        collisionDetectionEnabled = !collisionDetectionEnabled;
+        this.textContent = collisionDetectionEnabled ? "禁用碰撞检测" : "启用碰撞检测";
+        checkCollisions();
+    });
+
+    document.getElementById('toggleBoundingBox').addEventListener('click', function () {
+        showBoundingBoxes = !showBoundingBoxes;
+        this.textContent = showBoundingBoxes ? "隐藏包围盒" : "显示包围盒";
+
+        objects.forEach(obj => {
+            if (showBoundingBoxes) {
+                createBoundingBoxHelper(obj);
+            } else if (obj.userData.boundingBoxHelper) {
+                scene.remove(obj.userData.boundingBoxHelper);
+                obj.userData.boundingBoxHelper = null;
+            }
+        });
+    });
+
+    // 连线功能按钮
+    document.getElementById('connectObjects').addEventListener('click', function () {
+        if (selectedObject && connectedObjects.length === 1 && connectedObjects[0] !== selectedObject) {
+            // 如果已有一个连接物体且不是当前选中的物体，创建连接
+            createConnectionLine(connectedObjects[0], selectedObject);
+        } else if (selectedObject && connectedObjects.length === 0) {
+            // 如果没有连接物体，将当前选中物体设为第一个连接物体
+            connectedObjects = [selectedObject];
+            document.getElementById('connectionInfo').textContent =
+                `当前连接: 选择第二个物体 (已选 ${selectedObject.userData.type})`;
+        }
+    });
+
+    document.getElementById('disconnectObjects').addEventListener('click', function () {
+        removeConnectionLine();
+    });
+
+    // 当连接类型或颜色改变时更新连接线
+    document.getElementById('connectionType').addEventListener('change', function () {
+        if (connectedObjects.length === 2) {
+            createConnectionLine(connectedObjects[0], connectedObjects[1]);
+        }
+    });
+
+    document.getElementById('lineColor').addEventListener('input', function () {
+        if (connectionLine) {
+            connectionLine.material.color.set(this.value);
+        }
+    });
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        orbitControls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 初始更新和检测
+    updateBoundingVolumes();
+    checkCollisions();
+</script>
+</body>
+</html>

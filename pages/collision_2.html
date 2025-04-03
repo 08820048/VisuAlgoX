@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AABB碰撞辅助可视化工具</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 400px;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            width: 300px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .control-group {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        .control-group h3 {
+            margin: 5px 0;
+        }
+        .explanation {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+        }
+        .explanation h4 {
+            margin: 5px 0;
+            color: #4CAF50;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #555;
+            padding: 5px;
+            text-align: center;
+        }
+        th {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div id="info">
+        <h2>AABB碰撞辅助可视化工具</h2>
+        <div id="collisionInfo">状态: 未碰撞</div>
+        <div id="distanceInfo">距离: -</div>
+        <div class="explanation">
+            <h4>AABB最小点和最大点</h4>
+            <p>AABB(轴向对齐包围盒)由两个点定义:</p>
+            <ul>
+                <li><strong>最小点(min)</strong>: 三个坐标分量都是最小的点</li>
+                <li><strong>最大点(max)</strong>: 三个坐标分量都是最大的点</li>
+            </ul>
+            <table id="aabbPointsTable">
+                <tr>
+                    <th>点</th>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th>Z</th>
+                </tr>
+                <tr>
+                    <td>最小点</td>
+                    <td id="minX">-</td>
+                    <td id="minY">-</td>
+                    <td id="minZ">-</td>
+                </tr>
+                <tr>
+                    <td>最大点</td>
+                    <td id="maxX">-</td>
+                    <td id="maxY">-</td>
+                    <td id="maxZ">-</td>
+                </tr>
+                <tr>
+                    <td>中心点</td>
+                    <td id="centerX">-</td>
+                    <td id="centerY">-</td>
+                    <td id="centerZ">-</td>
+                </tr>
+            </table>
+        </div>
+        <div class="explanation">
+            <h4>最近点计算原理</h4>
+            <p>对于球心点 (x,y,z), AABB最近点的计算方法是:</p>
+            <p>closest.x = clamp(x, min.x, max.x)</p>
+            <p>closest.y = clamp(y, min.y, max.y)</p>
+            <p>closest.z = clamp(z, min.z, max.z)</p>
+            <p>其中 clamp(value, min, max) 将值限制在[min,max]范围内</p>
+        </div>
+    </div>
+    <div id="controls">
+        <div class="control-group">
+            <h3>球体设置</h3>
+            <label>
+                半径: <span id="sphereRadiusValue">1.0</span>
+                <input type="range" id="sphereRadius" min="0.1" max="3" step="0.1" value="1.0">
+            </label>
+            <label>
+                X: <span id="sphereXValue">2.0</span>
+                <input type="range" id="sphereX" min="-5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                Y: <span id="sphereYValue">1.0</span>
+                <input type="range" id="sphereY" min="-5" max="5" step="0.1" value="1.0">
+            </label>
+            <label>
+                Z: <span id="sphereZValue">0.0</span>
+                <input type="range" id="sphereZ" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <button id="randomSpherePos">随机球体位置</button>
+        </div>
+        <div class="control-group">
+            <h3>AABB设置</h3>
+            <label>
+                宽度: <span id="aabbWidthValue">2.0</span>
+                <input type="range" id="aabbWidth" min="0.5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                高度: <span id="aabbHeightValue">2.0</span>
+                <input type="range" id="aabbHeight" min="0.5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                深度: <span id="aabbDepthValue">2.0</span>
+                <input type="range" id="aabbDepth" min="0.5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                X: <span id="aabbXValue">-1.0</span>
+                <input type="range" id="aabbX" min="-5" max="5" step="0.1" value="-1.0">
+            </label>
+            <label>
+                Y: <span id="aabbYValue">0.0</span>
+                <input type="range" id="aabbY" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <label>
+                Z: <span id="aabbZValue">0.0</span>
+                <input type="range" id="aabbZ" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <button id="randomAABBPos">随机AABB位置</button>
+        </div>
+        <div class="control-group">
+            <h3>可视化选项</h3>
+            <label>
+                <input type="checkbox" id="showClosestPoint" checked>
+                显示最近点
+            </label>
+            <label>
+                <input type="checkbox" id="showDistanceLine" checked>
+                显示距离连线
+            </label>
+            <label>
+                <input type="checkbox" id="showAABBFaces" checked>
+                显示AABB面
+            </label>
+            <label>
+                <input type="checkbox" id="showMinMaxPoints" checked>
+                显示最小/最大点
+            </label>
+            <label>
+                <input type="checkbox" id="showCenterPoint" checked>
+                显示中心点
+            </label>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script>
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 添加光源
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // 添加网格辅助
+    const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x444444);
+    scene.add(gridHelper);
+
+    // 添加坐标轴辅助
+    const axesHelper = new THREE.AxesHelper(3);
+    scene.add(axesHelper);
+
+    // 创建球体和AABB
+    let sphere, aabb;
+    let closestPointMarker, distanceLine;
+    let aabbHelper, minPointMarker, maxPointMarker, centerPointMarker;
+
+    // 初始化场景
+    initScene();
+
+    // 设置轨道控制器
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.05;
+
+    // 窗口大小调整
+    window.addEventListener('resize', function () {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化场景函数
+    function initScene() {
+        // 清除现有物体
+        if (sphere) scene.remove(sphere);
+        if (aabb) scene.remove(aabb);
+        if (closestPointMarker) scene.remove(closestPointMarker);
+        if (distanceLine) scene.remove(distanceLine);
+        if (aabbHelper) scene.remove(aabbHelper);
+        if (minPointMarker) scene.remove(minPointMarker);
+        if (maxPointMarker) scene.remove(maxPointMarker);
+        if (centerPointMarker) scene.remove(centerPointMarker);
+
+        // 创建球体
+        const sphereRadius = parseFloat(document.getElementById('sphereRadius').value);
+        const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+        const sphereMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.7
+        });
+        sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.set(
+            parseFloat(document.getElementById('sphereX').value),
+            parseFloat(document.getElementById('sphereY').value),
+            parseFloat(document.getElementById('sphereZ').value)
+        );
+        sphere.castShadow = true;
+        scene.add(sphere);
+
+        // 创建AABB
+        const aabbWidth = parseFloat(document.getElementById('aabbWidth').value);
+        const aabbHeight = parseFloat(document.getElementById('aabbHeight').value);
+        const aabbDepth = parseFloat(document.getElementById('aabbDepth').value);
+        const aabbGeometry = new THREE.BoxGeometry(aabbWidth, aabbHeight, aabbDepth);
+        const aabbMaterial = new THREE.MeshStandardMaterial({
+            color: 0x0000ff,
+            transparent: true,
+            opacity: 0.5,
+            wireframe: !document.getElementById('showAABBFaces').checked
+        });
+        aabb = new THREE.Mesh(aabbGeometry, aabbMaterial);
+        aabb.position.set(
+            parseFloat(document.getElementById('aabbX').value),
+            parseFloat(document.getElementById('aabbY').value),
+            parseFloat(document.getElementById('aabbZ').value)
+        );
+        scene.add(aabb);
+
+        // 创建最近点标记
+        const pointGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+        const closestPointMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+        closestPointMarker = new THREE.Mesh(pointGeometry, closestPointMaterial);
+        scene.add(closestPointMarker);
+
+        // 创建距离连线
+        const lineGeometry = new THREE.BufferGeometry();
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00 });
+        distanceLine = new THREE.Line(lineGeometry, lineMaterial);
+        scene.add(distanceLine);
+
+        // 创建AABB辅助线框
+        aabbHelper = new THREE.Box3Helper(new THREE.Box3(), 0xffffff);
+        scene.add(aabbHelper);
+
+        // 创建最小点标记
+        const minPointMaterial = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+        minPointMarker = new THREE.Mesh(pointGeometry, minPointMaterial);
+        scene.add(minPointMarker);
+
+        // 创建最大点标记
+        const maxPointMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff });
+        maxPointMarker = new THREE.Mesh(pointGeometry, maxPointMaterial);
+        scene.add(maxPointMarker);
+
+        // 创建中心点标记
+        const centerPointMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        centerPointMarker = new THREE.Mesh(pointGeometry, centerPointMaterial);
+        scene.add(centerPointMarker);
+
+        // 更新可视化
+        updateVisualization();
+    }
+
+    // 计算AABB的最近点
+    function getClosestPointOnAABB(spherePos, aabbMesh) {
+        // 获取AABB的边界
+        aabbMesh.geometry.computeBoundingBox();
+        const aabbBox = aabbMesh.geometry.boundingBox.clone();
+
+        // 考虑AABB的位置和缩放
+        aabbBox.min.x = aabbMesh.position.x + aabbBox.min.x * aabbMesh.scale.x;
+        aabbBox.max.x = aabbMesh.position.x + aabbBox.max.x * aabbMesh.scale.x;
+        aabbBox.min.y = aabbMesh.position.y + aabbBox.min.y * aabbMesh.scale.y;
+        aabbBox.max.y = aabbMesh.position.y + aabbBox.max.y * aabbMesh.scale.y;
+        aabbBox.min.z = aabbMesh.position.z + aabbBox.min.z * aabbMesh.scale.z;
+        aabbBox.max.z = aabbMesh.position.z + aabbBox.max.z * aabbMesh.scale.z;
+
+        // 计算最近点
+        const closestPoint = new THREE.Vector3();
+
+        // 将球心的每个分量限制在AABB的对应轴的最小值和最大值之间
+        closestPoint.x = Math.max(aabbBox.min.x, Math.min(spherePos.x, aabbBox.max.x));
+        closestPoint.y = Math.max(aabbBox.min.y, Math.min(spherePos.y, aabbBox.max.y));
+        closestPoint.z = Math.max(aabbBox.min.z, Math.min(spherePos.z, aabbBox.max.z));
+
+        return {
+            point: closestPoint,
+            box: aabbBox,
+            min: aabbBox.min,
+            max: aabbBox.max,
+            center: new THREE.Vector3(
+                (aabbBox.min.x + aabbBox.max.x) / 2,
+                (aabbBox.min.y + aabbBox.max.y) / 2,
+                (aabbBox.min.z + aabbBox.max.z) / 2
+            )
+        };
+    }
+
+    // 检测球体与AABB的碰撞
+    function checkSphereAABBCollision() {
+        const closestPointData = getClosestPointOnAABB(sphere.position, aabb);
+        const closestPoint = closestPointData.point;
+        const aabbBox = closestPointData.box;
+
+        // 更新AABB辅助线框
+        aabbHelper.box.copy(aabbBox);
+
+        // 更新点标记
+        minPointMarker.position.copy(closestPointData.min);
+        maxPointMarker.position.copy(closestPointData.max);
+        centerPointMarker.position.copy(closestPointData.center);
+
+        // 更新最近点标记
+        if (document.getElementById('showClosestPoint').checked) {
+            closestPointMarker.position.copy(closestPoint);
+            closestPointMarker.visible = true;
+        } else {
+            closestPointMarker.visible = false;
+        }
+
+        // 更新距离连线
+        if (document.getElementById('showDistanceLine').checked) {
+            distanceLine.geometry.setFromPoints([sphere.position, closestPoint]);
+            distanceLine.visible = true;
+        } else {
+            distanceLine.visible = false;
+        }
+
+        // 更新最小/最大点显示
+        minPointMarker.visible = document.getElementById('showMinMaxPoints').checked;
+        maxPointMarker.visible = document.getElementById('showMinMaxPoints').checked;
+        centerPointMarker.visible = document.getElementById('showCenterPoint').checked;
+
+        // 更新信息显示
+        document.getElementById('minX').textContent = closestPointData.min.x.toFixed(2);
+        document.getElementById('minY').textContent = closestPointData.min.y.toFixed(2);
+        document.getElementById('minZ').textContent = closestPointData.min.z.toFixed(2);
+
+        document.getElementById('maxX').textContent = closestPointData.max.x.toFixed(2);
+        document.getElementById('maxY').textContent = closestPointData.max.y.toFixed(2);
+        document.getElementById('maxZ').textContent = closestPointData.max.z.toFixed(2);
+
+        document.getElementById('centerX').textContent = closestPointData.center.x.toFixed(2);
+        document.getElementById('centerY').textContent = closestPointData.center.y.toFixed(2);
+        document.getElementById('centerZ').textContent = closestPointData.center.z.toFixed(2);
+
+        // 计算球心到最近点的距离平方
+        const distanceSquared = sphere.position.distanceToSquared(closestPoint);
+        const radius = sphere.geometry.parameters.radius * sphere.scale.x;
+        const distance = Math.sqrt(distanceSquared);
+
+        document.getElementById('distanceInfo').textContent = `距离: ${distance.toFixed(2)} (半径: ${radius.toFixed(2)})`;
+
+        // 检测碰撞
+        if (distanceSquared < radius * radius) {
+            document.getElementById('collisionInfo').textContent = "状态: 碰撞中";
+            document.getElementById('collisionInfo').style.color = "#ff0000";
+            return true;
+        } else {
+            document.getElementById('collisionInfo').textContent = "状态: 未碰撞";
+            document.getElementById('collisionInfo').style.color = "#00ff00";
+            return false;
+        }
+    }
+
+    // 更新可视化
+    function updateVisualization() {
+        // 更新AABB材质
+        aabb.material.wireframe = !document.getElementById('showAABBFaces').checked;
+
+        // 更新球体位置
+        sphere.position.set(
+            parseFloat(document.getElementById('sphereX').value),
+            parseFloat(document.getElementById('sphereY').value),
+            parseFloat(document.getElementById('sphereZ').value)
+        );
+
+        // 更新AABB位置
+        aabb.position.set(
+            parseFloat(document.getElementById('aabbX').value),
+            parseFloat(document.getElementById('aabbY').value),
+            parseFloat(document.getElementById('aabbZ').value)
+        );
+
+        // 检查碰撞
+        checkSphereAABBCollision();
+    }
+
+    // 随机球体位置
+    function randomizeSpherePosition() {
+        document.getElementById('sphereX').value = (Math.random() - 0.5) * 8;
+        document.getElementById('sphereY').value = Math.random() * 4;
+        document.getElementById('sphereZ').value = (Math.random() - 0.5) * 8;
+
+        document.getElementById('sphereXValue').textContent = document.getElementById('sphereX').value;
+        document.getElementById('sphereYValue').textContent = document.getElementById('sphereY').value;
+        document.getElementById('sphereZValue').textContent = document.getElementById('sphereZ').value;
+
+        updateVisualization();
+    }
+
+    // 随机AABB位置
+    function randomizeAABBPosition() {
+        document.getElementById('aabbX').value = (Math.random() - 0.5) * 6;
+        document.getElementById('aabbY').value = Math.random() * 3;
+        document.getElementById('aabbZ').value = (Math.random() - 0.5) * 6;
+
+        document.getElementById('aabbXValue').textContent = document.getElementById('aabbX').value;
+        document.getElementById('aabbYValue').textContent = document.getElementById('aabbY').value;
+        document.getElementById('aabbZValue').textContent = document.getElementById('aabbZ').value;
+
+        updateVisualization();
+    }
+
+    // 事件监听
+    document.getElementById('sphereRadius').addEventListener('input', function() {
+        const radius = parseFloat(this.value);
+        document.getElementById('sphereRadiusValue').textContent = radius.toFixed(1);
+        sphere.geometry.dispose();
+        sphere.geometry = new THREE.SphereGeometry(radius, 32, 32);
+        updateVisualization();
+    });
+
+    document.getElementById('sphereX').addEventListener('input', function() {
+        document.getElementById('sphereXValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('sphereY').addEventListener('input', function() {
+        document.getElementById('sphereYValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('sphereZ').addEventListener('input', function() {
+        document.getElementById('sphereZValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('aabbWidth').addEventListener('input', function() {
+        const width = parseFloat(this.value);
+        document.getElementById('aabbWidthValue').textContent = width.toFixed(1);
+        aabb.geometry.dispose();
+        aabb.geometry = new THREE.BoxGeometry(
+            width,
+            parseFloat(document.getElementById('aabbHeight').value),
+            parseFloat(document.getElementById('aabbDepth').value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('aabbHeight').addEventListener('input', function() {
+        const height = parseFloat(this.value);
+        document.getElementById('aabbHeightValue').textContent = height.toFixed(1);
+        aabb.geometry.dispose();
+        aabb.geometry = new THREE.BoxGeometry(
+            parseFloat(document.getElementById('aabbWidth').value),
+            height,
+            parseFloat(document.getElementById('aabbDepth').value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('aabbDepth').addEventListener('input', function() {
+        const depth = parseFloat(this.value);
+        document.getElementById('aabbDepthValue').textContent = depth.toFixed(1);
+        aabb.geometry.dispose();
+        aabb.geometry = new THREE.BoxGeometry(
+            parseFloat(document.getElementById('aabbWidth').value),
+            parseFloat(document.getElementById('aabbHeight').value),
+            depth
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('aabbX').addEventListener('input', function() {
+        document.getElementById('aabbXValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('aabbY').addEventListener('input', function() {
+        document.getElementById('aabbYValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('aabbZ').addEventListener('input', function() {
+        document.getElementById('aabbZValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('randomSpherePos').addEventListener('click', randomizeSpherePosition);
+    document.getElementById('randomAABBPos').addEventListener('click', randomizeAABBPosition);
+
+    document.getElementById('showClosestPoint').addEventListener('change', updateVisualization);
+    document.getElementById('showDistanceLine').addEventListener('change', updateVisualization);
+    document.getElementById('showAABBFaces').addEventListener('change', updateVisualization);
+    document.getElementById('showMinMaxPoints').addEventListener('change', updateVisualization);
+    document.getElementById('showCenterPoint').addEventListener('change', updateVisualization);
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        orbitControls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 初始更新
+    updateVisualization();
+</script>
+</body>
+</html>

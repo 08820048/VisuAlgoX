@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMP算法3D可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --secondary: #0066ff;
+            --dark: #0a0e17;
+            --light: #e0f7ff;
+            --panel-bg: rgba(10, 14, 23, 0.8);
+            --border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 标题 */
+        .header {
+            text-align: center;
+            padding: 1rem;
+            background: linear-gradient(180deg, rgba(15,22,33,0.95) 0%, rgba(15,22,33,0.85) 100%);
+            backdrop-filter: blur(4px);
+            border-bottom: var(--border);
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            width: 300px;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-right: var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            border-bottom: var(--border);
+            padding-bottom: 15px;
+        }
+
+        .panel-title {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--dark);
+            border: none;
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            height: 5px;
+            background: rgba(0, 240, 255, 0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 240, 255, 0.8);
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--primary);
+            color: var(--light);
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--primary);
+            font-size: 0.9rem;
+        }
+
+        /* 可视化区域 */
+        .visualization {
+            flex: 1;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 科技风装饰元素 */
+        .tech-decoration {
+            position: absolute;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            pointer-events: none;
+        }
+
+        .tech-decoration:nth-child(1) {
+            top: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            transform: rotate(45deg);
+        }
+
+        .tech-decoration:nth-child(2) {
+            bottom: 40px;
+            left: 40px;
+            width: 60px;
+            height: 60px;
+            border-right-color: var(--primary);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 标题 -->
+<header class="header">
+    <h1>KMP算法可视化</h1>
+</header>
+
+<!-- 主内容区域 -->
+<div class="main-content">
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <div class="panel-section">
+            <h3 class="panel-title">字符串设置</h3>
+            <label>文本串:</label>
+            <input type="text" id="textString" value="ABABDABACDABABCABAB">
+            <label>模式串:</label>
+            <input type="text" id="patternString" value="ABABCABAB">
+            <button id="generateExample">生成示例</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">算法控制</h3>
+            <button id="startBtn">开始算法</button>
+            <button id="pauseBtn" disabled>暂停</button>
+            <button id="stepBtn" disabled>单步执行</button>
+            <button id="resetBtn">重置</button>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">参数设置</h3>
+            <label>动画速度: <span id="speedValue">中</span></label>
+            <input type="range" id="animationSpeed" min="1" max="10" value="5">
+        </div>
+
+        <div class="panel-section">
+            <h3 class="panel-title">状态信息</h3>
+            <div class="status" id="statusInfo">
+                请设置文本串和模式串
+            </div>
+            <div id="currentStep">当前步骤: -</div>
+            <div id="comparisonCount">比较次数: 0</div>
+            <div id="matchInfo">匹配位置: -</div>
+            <div id="lpsInfo">LPS数组: -</div>
+        </div>
+    </div>
+
+    <!-- 可视化区域 -->
+    <div class="visualization">
+        <div class="tech-decoration"></div>
+        <div class="tech-decoration"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+
+<script>
+    // 初始化Three.js场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0e17);
+
+    // 添加环境光和定向光
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0x00f0ff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // 初始化相机
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 15);
+
+    // 初始化渲染器
+    const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('canvas'),
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // 添加轨道控制器
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 算法状态变量
+    let isRunning = false;
+    let isPaused = false;
+    let animationComplete = false;
+    let animationSpeed = 5;
+    let animationId = null;
+
+    // KMP算法变量
+    let text = "";
+    let pattern = "";
+    let lps = [];
+    let textMeshes = [];
+    let patternMeshes = [];
+    let comparisonCount = 0;
+    let currentStep = 0;
+    let i = 0; // 文本串索引
+    let j = 0; // 模式串索引
+    let matchPositions = [];
+    let isBuildingLPS = false;
+
+    // 创建字符3D对象
+    function createCharMesh(char, x, y, z, color = 0x00f0ff) {
+        const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.2);
+        const material = new THREE.MeshPhongMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.1,
+            shininess: 100
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(x, y, z);
+
+        // 添加字符标签
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#e0f7ff';
+        context.font = '48px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(char, 32, 32);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const labelMaterial = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true
+        });
+
+        const labelGeometry = new THREE.PlaneGeometry(0.7, 0.7);
+        const label = new THREE.Mesh(labelGeometry, labelMaterial);
+        label.position.set(x, y, z + 0.11);
+        label.rotation.x = Math.PI;
+
+        return { mesh, label };
+    }
+
+    // 渲染字符串
+    function renderStrings() {
+        // 清除现有对象
+        textMeshes.forEach(({ mesh, label }) => {
+            scene.remove(mesh);
+            scene.remove(label);
+        });
+        patternMeshes.forEach(({ mesh, label }) => {
+            scene.remove(mesh);
+            scene.remove(label);
+        });
+
+        textMeshes = [];
+        patternMeshes = [];
+
+        // 渲染文本串
+        const textStartX = -text.length / 2 + 0.5;
+        for (let k = 0; k < text.length; k++) {
+            const { mesh, label } = createCharMesh(text[k], textStartX + k, 1, 0);
+            scene.add(mesh);
+            scene.add(label);
+            textMeshes.push({ mesh, label });
+        }
+
+        // 渲染模式串
+        const patternStartX = -pattern.length / 2 + 0.5;
+        for (let k = 0; k < pattern.length; k++) {
+            const { mesh, label } = createCharMesh(pattern[k], patternStartX + k, 0, 0);
+            scene.add(mesh);
+            scene.add(label);
+            patternMeshes.push({ mesh, label });
+        }
+
+        // 添加标签
+        const textLabel = createTextLabel("文本串:", -text.length / 2 - 1.5, 1, 0);
+        const patternLabel = createTextLabel("模式串:", -pattern.length / 2 - 1.5, 0, 0);
+
+        scene.add(textLabel);
+        scene.add(patternLabel);
+    }
+
+    // 创建文本标签
+    function createTextLabel(text, x, y, z) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#00f0ff';
+        context.font = '24px Arial';
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        context.fillText(text, 10, 32);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true
+        });
+
+        const geometry = new THREE.PlaneGeometry(3, 0.7);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(x, y, z);
+
+        return mesh;
+    }
+
+    // 高亮字符
+    function highlightChar(meshIndex, isText, color) {
+        const meshes = isText ? textMeshes : patternMeshes;
+        if (meshIndex >= 0 && meshIndex < meshes.length) {
+            meshes[meshIndex].mesh.material.color.setHex(color);
+            meshes[meshIndex].mesh.material.emissive.setHex(color);
+            meshes[meshIndex].mesh.material.emissiveIntensity = 0.5;
+        }
+    }
+
+    // 重置字符颜色
+    function resetCharColor(meshIndex, isText) {
+        const meshes = isText ? textMeshes : patternMeshes;
+        if (meshIndex >= 0 && meshIndex < meshes.length) {
+            meshes[meshIndex].mesh.material.color.setHex(0x00f0ff);
+            meshes[meshIndex].mesh.material.emissive.setHex(0x00f0ff);
+            meshes[meshIndex].mesh.material.emissiveIntensity = 0.1;
+        }
+    }
+
+    // 计算LPS数组
+    function computeLPSArray() {
+        const len = pattern.length;
+        lps = new Array(len).fill(0);
+        let length = 0;
+        let i = 1;
+
+        lps[0] = 0; // lps[0]总是0
+
+        while (i < len) {
+            if (pattern[i] === pattern[length]) {
+                length++;
+                lps[i] = length;
+                i++;
+            } else {
+                if (length !== 0) {
+                    length = lps[length - 1];
+                } else {
+                    lps[i] = 0;
+                    i++;
+                }
+            }
+        }
+    }
+
+    // 更新状态显示
+    function updateStatus() {
+        document.getElementById('currentStep').textContent = `当前步骤: ${currentStep}`;
+        document.getElementById('comparisonCount').textContent = `比较次数: ${comparisonCount}`;
+
+        if (matchPositions.length > 0) {
+            document.getElementById('matchInfo').textContent = `匹配位置: ${matchPositions.join(', ')}`;
+        } else {
+            document.getElementById('matchInfo').textContent = `匹配位置: -`;
+        }
+
+        document.getElementById('lpsInfo').textContent = `LPS数组: [${lps.join(', ')}]`;
+    }
+
+    // KMP算法
+    async function runKMP() {
+        if (animationComplete || text.length === 0 || pattern.length === 0) return;
+
+        // 重置状态
+        i = 0;
+        j = 0;
+        comparisonCount = 0;
+        currentStep = 0;
+        matchPositions = [];
+        isBuildingLPS = true;
+
+        isRunning = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('pauseBtn').disabled = false;
+        document.getElementById('stepBtn').disabled = false;
+        document.getElementById('resetBtn').disabled = true;
+
+        // 计算LPS数组
+        document.getElementById('statusInfo').textContent = "计算LPS数组中...";
+        computeLPSArray();
+
+        // 可视化LPS数组计算
+        for (let k = 0; k < pattern.length; k++) {
+            if (isPaused) {
+                await waitForResume();
+            }
+
+            highlightChar(k, false, 0xffff00); // 黄色表示正在处理的字符
+            await delay(1000 / animationSpeed);
+            resetCharColor(k, false);
+
+            currentStep++;
+            updateStatus();
+            await delay(500 / animationSpeed);
+        }
+
+        isBuildingLPS = false;
+        document.getElementById('statusInfo').textContent = "执行KMP算法中...";
+
+        // 执行KMP搜索
+        while (i < text.length) {
+            if (isPaused) {
+                await waitForResume();
+            }
+
+            currentStep++;
+            comparisonCount++;
+
+            // 高亮当前比较的字符
+            highlightChar(i, true, 0xff0000); // 红色表示文本串当前字符
+            highlightChar(j, false, 0xff0000); // 红色表示模式串当前字符
+            updateStatus();
+            await delay(1000 / animationSpeed);
+
+            if (pattern[j] === text[i]) {
+                // 字符匹配
+                highlightChar(i, true, 0x00ff00); // 绿色表示匹配
+                highlightChar(j, false, 0x00ff00); // 绿色表示匹配
+                await delay(1000 / animationSpeed);
+
+                i++;
+                j++;
+
+                // 检查是否完全匹配
+                if (j === pattern.length) {
+                    // 找到匹配
+                    const matchPos = i - j;
+                    matchPositions.push(matchPos);
+
+                    // 高亮匹配的文本串部分
+                    for (let k = 0; k < pattern.length; k++) {
+                        highlightChar(matchPos + k, true, 0x00ff00); // 绿色表示匹配
+                    }
+                    await delay(1500 / animationSpeed);
+
+                    // 根据LPS数组跳过
+                    j = lps[j - 1];
+                }
+            } else {
+                // 字符不匹配
+                highlightChar(i, true, 0xff00ff); // 紫色表示不匹配
+                highlightChar(j, false, 0xff00ff); // 紫色表示不匹配
+                await delay(1000 / animationSpeed);
+
+                if (j !== 0) {
+                    // 根据LPS数组跳过
+                    const skip = lps[j - 1];
+
+                    // 高亮跳过的部分
+                    for (let k = 0; k < skip; k++) {
+                        highlightChar(j - skip + k, false, 0xffff00); // 黄色表示跳过的部分
+                    }
+                    await delay(1000 / animationSpeed);
+
+                    j = skip;
+
+                    // 重置跳过高亮
+                    for (let k = 0; k < skip; k++) {
+                        resetCharColor(j - skip + k, false);
+                    }
+                } else {
+                    i++;
+                }
+            }
+
+            // 重置当前比较的字符颜色
+            resetCharColor(i - 1, true);
+            resetCharColor(j - 1, false);
+        }
+
+        if (!isPaused) {
+            animationComplete = true;
+            if (matchPositions.length > 0) {
+                document.getElementById('statusInfo').textContent = "算法完成，找到匹配位置!";
+            } else {
+                document.getElementById('statusInfo').textContent = "算法完成，未找到匹配!";
+            }
+        }
+
+        isRunning = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('stepBtn').disabled = true;
+        document.getElementById('resetBtn').disabled = false;
+    }
+
+    // 重置算法状态
+    function resetAlgorithm() {
+        // 重置所有字符颜色
+        textMeshes.forEach((_, i) => resetCharColor(i, true));
+        patternMeshes.forEach((_, i) => resetCharColor(i, false));
+
+        // 重置算法状态
+        isRunning = false;
+        isPaused = false;
+        animationComplete = false;
+        comparisonCount = 0;
+        currentStep = 0;
+        matchPositions = [];
+
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        document.getElementById('pauseBtn').textContent = "暂停";
+        document.getElementById('stepBtn').disabled = true;
+        document.getElementById('resetBtn').disabled = false;
+        document.getElementById('statusInfo').textContent = "算法已重置，请设置文本串和模式串";
+
+        updateStatus();
+    }
+
+    // 工具函数
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function waitForResume() {
+        return new Promise(resolve => {
+            const checkResume = setInterval(() => {
+                if (!isPaused) {
+                    clearInterval(checkResume);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    // 事件监听器
+    document.getElementById('generateExample').addEventListener('click', () => {
+        document.getElementById('textString').value = "ABABDABACDABABCABAB";
+        document.getElementById('patternString').value = "ABABCABAB";
+        updateStrings();
+    });
+
+    function updateStrings() {
+        text = document.getElementById('textString').value;
+        pattern = document.getElementById('patternString').value;
+        renderStrings();
+        resetAlgorithm();
+    }
+
+    document.getElementById('textString').addEventListener('change', updateStrings);
+    document.getElementById('patternString').addEventListener('change', updateStrings);
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+        if (text.length === 0 || pattern.length === 0) {
+            alert("请设置文本串和模式串");
+            return;
+        }
+
+        if (!isRunning) {
+            document.getElementById('statusInfo').textContent = "算法执行中...";
+            runKMP();
+        } else if (isPaused) {
+            isPaused = false;
+            document.getElementById('pauseBtn').textContent = "暂停";
+            document.getElementById('statusInfo').textContent = "算法继续执行...";
+            runKMP();
+        }
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', () => {
+        if (isRunning && !isPaused) {
+            isPaused = true;
+            document.getElementById('pauseBtn').textContent = "继续";
+            document.getElementById('statusInfo').textContent = "算法已暂停";
+        }
+    });
+
+    document.getElementById('stepBtn').addEventListener('click', () => {
+        // 单步执行功能需要更复杂的实现
+        alert("单步执行功能需要更复杂的实现，当前版本暂不支持");
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', resetAlgorithm);
+
+    document.getElementById('animationSpeed').addEventListener('input', (e) => {
+        const speedText = ['很慢', '慢', '较慢', '稍慢', '中', '稍快', '较快', '快', '很快', '极快'][e.target.value - 1];
+        document.getElementById('speedValue').textContent = speedText;
+        animationSpeed = parseInt(e.target.value);
+    });
+
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+        camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth - 300, window.innerHeight);
+    });
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // 初始化
+    animate();
+    updateStrings();
+</script>
+</body>
+</html>
