@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBB旋转矩阵可视化（支持旋转顺序）</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 100;
+            width: 320px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #444;
+        }
+        .control-group h3 {
+            margin: 8px 0;
+            color: #4CAF50;
+        }
+        label {
+            display: block;
+            margin: 8px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        select {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .matrix-container {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        .matrix-table {
+            font-family: monospace;
+            font-size: 16px;
+            margin: 10px auto;
+            border-collapse: collapse;
+        }
+        .matrix-table th, .matrix-table td {
+            border: 1px solid #555;
+            padding: 8px 12px;
+            text-align: center;
+            width: 60px;
+        }
+        .matrix-table th {
+            background-color: rgba(76, 175, 80, 0.3);
+        }
+        .property-value {
+            font-family: monospace;
+            color: #FF9800;
+        }
+        .explanation {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .order-sequence {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div id="info-panel">
+        <h2>OBB旋转矩阵可视化</h2>
+
+        <div class="matrix-container">
+            <h3>旋转矩阵 R</h3>
+            <div id="rotationMatrix"></div>
+            <div class="explanation">
+                <p>当前旋转顺序: <span id="currentOrder" class="order-sequence">XYZ</span></p>
+                <p>旋转矩阵计算方式: R = R<sub id="order1">Z</sub> × R<sub id="order2">Y</sub> × R<sub id="order3">X</sub></p>
+                <p>矩阵乘法不满足交换律，因此旋转顺序不同会导致不同的最终朝向。</p>
+            </div>
+        </div>
+
+        <div class="matrix-container">
+            <h3>矩阵性质</h3>
+            <p>正交性: <span id="orthogonal" class="property-value">-</span></p>
+            <p>行列式: <span id="determinant" class="property-value">-</span></p>
+            <p>逆矩阵 R⁻¹ = Rᵀ: <span id="inverseMatrix" class="property-value">-</span></p>
+        </div>
+
+        <div class="matrix-container">
+            <h3>基本旋转矩阵</h3>
+            <h4>绕X轴旋转矩阵 R<sub>x</sub>:</h4>
+            <div id="rxMatrix"></div>
+
+            <h4>绕Y轴旋转矩阵 R<sub>y</sub>:</h4>
+            <div id="ryMatrix"></div>
+
+            <h4>绕Z轴旋转矩阵 R<sub>z</sub>:</h4>
+            <div id="rzMatrix"></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="control-group">
+            <h3>旋转控制</h3>
+            <label>
+                绕X轴旋转: <span id="rotXValue">0</span>°
+                <input type="range" id="rotX" min="0" max="360" step="1" value="0">
+            </label>
+            <label>
+                绕Y轴旋转: <span id="rotYValue">0</span>°
+                <input type="range" id="rotY" min="0" max="360" step="1" value="0">
+            </label>
+            <label>
+                绕Z轴旋转: <span id="rotZValue">0</span>°
+                <input type="range" id="rotZ" min="0" max="360" step="1" value="0">
+            </label>
+
+            <label>
+                旋转顺序:
+                <select id="rotationOrder">
+                    <option value="XYZ">XYZ</option>
+                    <option value="XZY">XZY</option>
+                    <option value="YXZ">YXZ</option>
+                    <option value="YZX">YZX</option>
+                    <option value="ZXY">ZXY</option>
+                    <option value="ZYX">ZYX</option>
+                </select>
+            </label>
+
+            <button id="randomRot">随机旋转</button>
+            <button id="resetRot">重置旋转</button>
+        </div>
+
+        <div class="control-group">
+            <h3>可视化选项</h3>
+            <label>
+                <input type="checkbox" id="showLocalAxes" checked>
+                显示局部坐标轴
+            </label>
+            <label>
+                <input type="checkbox" id="showWorldAxes" checked>
+                显示世界坐标轴
+            </label>
+            <label>
+                <input type="checkbox" id="showBoundingBox" checked>
+                显示OBB包围盒
+            </label>
+            <label>
+                <input type="checkbox" id="showVertexNormals">
+                显示顶点法线
+            </label>
+        </div>
+
+        <div class="control-group">
+            <h3>OBB尺寸</h3>
+            <label>
+                宽度: <span id="widthValue">2.0</span>
+                <input type="range" id="width" min="0.5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                高度: <span id="heightValue">1.0</span>
+                <input type="range" id="height" min="0.5" max="5" step="0.1" value="1.0">
+            </label>
+            <label>
+                深度: <span id="depthValue">1.5</span>
+                <input type="range" id="depth" min="0.5" max="5" step="0.1" value="1.5">
+            </label>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script>
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111122);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 添加光源
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // 创建OBB
+    let obb, localAxes, worldAxes, vertexNormals;
+    let currentRotationOrder = 'XYZ';
+
+    // 初始化场景
+    initScene();
+
+    // 设置轨道控制器
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.05;
+
+    // 窗口大小调整
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化场景函数
+    function initScene() {
+        // 清除现有物体
+        if (obb) scene.remove(obb);
+        if (localAxes) scene.remove(localAxes);
+        if (worldAxes) scene.remove(worldAxes);
+        if (vertexNormals) scene.remove(vertexNormals);
+
+        // 创建OBB
+        const width = parseFloat(document.getElementById('width').value);
+        const height = parseFloat(document.getElementById('height').value);
+        const depth = parseFloat(document.getElementById('depth').value);
+
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x4CAF50,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        });
+
+        obb = new THREE.Mesh(geometry, material);
+        obb.castShadow = true;
+        scene.add(obb);
+
+        // 创建局部坐标轴
+        const axisLength = Math.max(width, height, depth) * 0.8;
+        localAxes = new THREE.Group();
+
+        const xAxis = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            axisLength,
+            0xff0000,
+            axisLength * 0.1,
+            axisLength * 0.05
+        );
+
+        const yAxis = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, 0, 0),
+            axisLength,
+            0x00ff00,
+            axisLength * 0.1,
+            axisLength * 0.05
+        );
+
+        const zAxis = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, 0),
+            axisLength,
+            0x0000ff,
+            axisLength * 0.1,
+            axisLength * 0.05
+        );
+
+        localAxes.add(xAxis);
+        localAxes.add(yAxis);
+        localAxes.add(zAxis);
+        scene.add(localAxes);
+
+        // 创建世界坐标轴
+        worldAxes = new THREE.AxesHelper(3);
+        scene.add(worldAxes);
+
+        // 创建顶点法线
+        vertexNormals = new THREE.Group();
+        const normals = geometry.attributes.normal;
+        const positions = geometry.attributes.position;
+
+        for (let i = 0; i < normals.count; i++) {
+            const normal = new THREE.Vector3(
+                normals.getX(i),
+                normals.getY(i),
+                normals.getZ(i)
+            );
+
+            const position = new THREE.Vector3(
+                positions.getX(i),
+                positions.getY(i),
+                positions.getZ(i)
+            );
+
+            const normalHelper = new THREE.ArrowHelper(
+                normal.clone().normalize(),
+                position,
+                Math.min(width, height, depth) * 0.3,
+                0xffff00,
+                0.05,
+                0.03
+            );
+
+            vertexNormals.add(normalHelper);
+        }
+
+        scene.add(vertexNormals);
+
+        // 更新旋转
+        updateRotation();
+    }
+
+    // 根据旋转顺序计算旋转矩阵
+    function calculateRotationMatrix() {
+        const rotX = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotX').value));
+        const rotY = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotY').value));
+        const rotZ = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotZ').value));
+
+        const order = document.getElementById('rotationOrder').value;
+        currentRotationOrder = order;
+
+        // 创建基本旋转矩阵
+        const rx = new THREE.Matrix4().makeRotationX(rotX);
+        const ry = new THREE.Matrix4().makeRotationY(rotY);
+        const rz = new THREE.Matrix4().makeRotationZ(rotZ);
+
+        // 根据旋转顺序组合矩阵
+        let rotationMatrix = new THREE.Matrix4();
+
+        switch(order) {
+            case 'XYZ':
+                rotationMatrix.multiply(rz).multiply(ry).multiply(rx);
+                break;
+            case 'XZY':
+                rotationMatrix.multiply(ry).multiply(rz).multiply(rx);
+                break;
+            case 'YXZ':
+                rotationMatrix.multiply(rz).multiply(rx).multiply(ry);
+                break;
+            case 'YZX':
+                rotationMatrix.multiply(rx).multiply(rz).multiply(ry);
+                break;
+            case 'ZXY':
+                rotationMatrix.multiply(ry).multiply(rx).multiply(rz);
+                break;
+            case 'ZYX':
+                rotationMatrix.multiply(rx).multiply(ry).multiply(rz);
+                break;
+        }
+
+        return {
+            matrix: rotationMatrix,
+            rx: rx,
+            ry: ry,
+            rz: rz
+        };
+    }
+
+    // 更新旋转
+    function updateRotation() {
+        const result = calculateRotationMatrix();
+        const rotationMatrix = result.matrix;
+
+        // 应用旋转矩阵到OBB
+        obb.rotation.setFromRotationMatrix(rotationMatrix);
+
+        // 更新局部坐标轴
+        localAxes.rotation.copy(obb.rotation);
+        localAxes.position.copy(obb.position);
+
+        // 更新顶点法线
+        vertexNormals.rotation.copy(obb.rotation);
+        vertexNormals.position.copy(obb.position);
+
+        // 更新旋转矩阵显示
+        updateMatrixDisplay(rotationMatrix, result.rx, result.ry, result.rz);
+
+        // 更新可视化选项
+        updateVisualizationOptions();
+    }
+
+    // 更新旋转矩阵显示
+    function updateMatrixDisplay(rotationMatrix, rx, ry, rz) {
+        // 格式化主旋转矩阵
+        const elements = rotationMatrix.elements;
+        const matrixHTML = `
+                <table class="matrix-table">
+                    <tr>
+                        <th>X</th>
+                        <th>Y</th>
+                        <th>Z</th>
+                    </tr>
+                    <tr>
+                        <td>${elements[0].toFixed(3)}</td>
+                        <td>${elements[4].toFixed(3)}</td>
+                        <td>${elements[8].toFixed(3)}</td>
+                    </tr>
+                    <tr>
+                        <td>${elements[1].toFixed(3)}</td>
+                        <td>${elements[5].toFixed(3)}</td>
+                        <td>${elements[9].toFixed(3)}</td>
+                    </tr>
+                    <tr>
+                        <td>${elements[2].toFixed(3)}</td>
+                        <td>${elements[6].toFixed(3)}</td>
+                        <td>${elements[10].toFixed(3)}</td>
+                    </tr>
+                </table>
+            `;
+
+        document.getElementById('rotationMatrix').innerHTML = matrixHTML;
+
+        // 更新旋转顺序显示
+        document.getElementById('currentOrder').textContent = currentRotationOrder;
+
+        // 更新乘法顺序显示
+        const orderElements = currentRotationOrder.split('');
+        document.getElementById('order1').textContent = orderElements[2];
+        document.getElementById('order2').textContent = orderElements[1];
+        document.getElementById('order3').textContent = orderElements[0];
+
+        // 显示基本旋转矩阵
+        displayBasicMatrix(rx, 'rxMatrix', 'X');
+        displayBasicMatrix(ry, 'ryMatrix', 'Y');
+        displayBasicMatrix(rz, 'rzMatrix', 'Z');
+
+        // 计算矩阵性质
+        const determinant = rotationMatrix.determinant();
+        const transpose = new THREE.Matrix4().copy(rotationMatrix).transpose();
+        const inverse = new THREE.Matrix4().getInverse(rotationMatrix);
+
+        // 检查正交性
+        const identity = new THREE.Matrix4();
+        const product = new THREE.Matrix4().multiplyMatrices(transpose, rotationMatrix);
+        const isOrthogonal = matrixEquals(product, identity, 0.001);
+
+        // 检查逆矩阵是否等于转置矩阵
+        const isInverseEqualToTranspose = matrixEquals(inverse, transpose, 0.001);
+
+        // 更新矩阵性质显示
+        document.getElementById('orthogonal').textContent = isOrthogonal ? "是" : "否";
+        document.getElementById('determinant').textContent = determinant.toFixed(3);
+        document.getElementById('inverseMatrix').textContent = isInverseEqualToTranspose ? "是" : "否";
+    }
+
+    // 显示基本旋转矩阵
+    function displayBasicMatrix(matrix, elementId, axis) {
+        const elements = matrix.elements;
+        const html = `
+                <table class="matrix-table">
+                    <tr>
+                        <td>${elements[0].toFixed(3)}</td>
+                        <td>${elements[4].toFixed(3)}</td>
+                        <td>${elements[8].toFixed(3)}</td>
+                    </tr>
+                    <tr>
+                        <td>${elements[1].toFixed(3)}</td>
+                        <td>${elements[5].toFixed(3)}</td>
+                        <td>${elements[9].toFixed(3)}</td>
+                    </tr>
+                    <tr>
+                        <td>${elements[2].toFixed(3)}</td>
+                        <td>${elements[6].toFixed(3)}</td>
+                        <td>${elements[10].toFixed(3)}</td>
+                    </tr>
+                </table>
+            `;
+        document.getElementById(elementId).innerHTML = html;
+    }
+
+    // 比较两个矩阵是否相等（考虑浮点误差）
+    function matrixEquals(m1, m2, tolerance = 0.0001) {
+        const e1 = m1.elements;
+        const e2 = m2.elements;
+
+        for (let i = 0; i < 16; i++) {
+            if (Math.abs(e1[i] - e2[i]) > tolerance) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 更新可视化选项
+    function updateVisualizationOptions() {
+        localAxes.visible = document.getElementById('showLocalAxes').checked;
+        worldAxes.visible = document.getElementById('showWorldAxes').checked;
+        obb.visible = document.getElementById('showBoundingBox').checked;
+        vertexNormals.visible = document.getElementById('showVertexNormals').checked;
+    }
+
+    // 随机旋转
+    function randomizeRotation() {
+        document.getElementById('rotX').value = Math.floor(Math.random() * 360);
+        document.getElementById('rotY').value = Math.floor(Math.random() * 360);
+        document.getElementById('rotZ').value = Math.floor(Math.random() * 360);
+
+        document.getElementById('rotXValue').textContent = document.getElementById('rotX').value;
+        document.getElementById('rotYValue').textContent = document.getElementById('rotY').value;
+        document.getElementById('rotZValue').textContent = document.getElementById('rotZ').value;
+
+        updateRotation();
+    }
+
+    // 重置旋转
+    function resetRotation() {
+        document.getElementById('rotX').value = 0;
+        document.getElementById('rotY').value = 0;
+        document.getElementById('rotZ').value = 0;
+
+        document.getElementById('rotXValue').textContent = "0";
+        document.getElementById('rotYValue').textContent = "0";
+        document.getElementById('rotZValue').textContent = "0";
+
+        updateRotation();
+    }
+
+    // 事件监听
+    document.getElementById('rotX').addEventListener('input', function() {
+        document.getElementById('rotXValue').textContent = this.value;
+        updateRotation();
+    });
+
+    document.getElementById('rotY').addEventListener('input', function() {
+        document.getElementById('rotYValue').textContent = this.value;
+        updateRotation();
+    });
+
+    document.getElementById('rotZ').addEventListener('input', function() {
+        document.getElementById('rotZValue').textContent = this.value;
+        updateRotation();
+    });
+
+    document.getElementById('rotationOrder').addEventListener('change', updateRotation);
+
+    document.getElementById('randomRot').addEventListener('click', randomizeRotation);
+    document.getElementById('resetRot').addEventListener('click', resetRotation);
+
+    document.getElementById('width').addEventListener('input', function() {
+        document.getElementById('widthValue').textContent = this.value;
+        initScene();
+    });
+
+    document.getElementById('height').addEventListener('input', function() {
+        document.getElementById('heightValue').textContent = this.value;
+        initScene();
+    });
+
+    document.getElementById('depth').addEventListener('input', function() {
+        document.getElementById('depthValue').textContent = this.value;
+        initScene();
+    });
+
+    document.getElementById('showLocalAxes').addEventListener('change', updateVisualizationOptions);
+    document.getElementById('showWorldAxes').addEventListener('change', updateVisualizationOptions);
+    document.getElementById('showBoundingBox').addEventListener('change', updateVisualizationOptions);
+    document.getElementById('showVertexNormals').addEventListener('change', updateVisualizationOptions);
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        orbitControls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 初始更新
+    updateRotation();
+</script>
+</body>
+</html>

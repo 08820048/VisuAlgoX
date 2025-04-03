@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分离轴定理学习工具 (OBB 2D/3D)</title>
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --danger-color: #ea4335;
+            --warning-color: #fbbc05;
+            --dark-color: #202124;
+            --light-color: #f8f9fa;
+            --border-color: #dadce0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            color: var(--dark-color);
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 350px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 10;
+            position: relative;
+        }
+
+        .sidebar-left {
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-right {
+            border-left: 1px solid var(--border-color);
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-right.collapsed {
+            transform: translateX(100%);
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        /* 侧边栏展开按钮 */
+        .sidebar-toggle-button {
+            position: absolute;
+            top: 10px;
+            width: 30px;
+            height: 30px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #left-sidebar-toggle {
+            left: 360px;
+        }
+
+        #right-sidebar-toggle {
+            right: 360px;
+        }
+
+        .sidebar.collapsed + .sidebar-toggle-button {
+            display: flex;
+        }
+
+        /* 主内容区域 */
+        #main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #mode-tabs {
+            display: flex;
+            background-color: white;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mode-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .mode-tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+
+        #renderer-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #view-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 5;
+        }
+
+        /* 控制面板样式 */
+        .control-panel {
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        input[type="number"], input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input[type="range"] {
+            padding: 0;
+        }
+
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .range-container input[type="number"] {
+            width: 70px;
+            flex-shrink: 0;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            margin-left: 8px;
+            font-weight: normal;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #3367d6;
+        }
+
+        .btn-secondary {
+            background-color: #f1f3f4;
+            color: var(--dark-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #e8eaed;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #d33426;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 13px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 信息面板 */
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 80%;
+            text-align: center;
+            font-size: 14px;
+            z-index: 5;
+        }
+
+        /* 分离轴可视化 */
+        .sat-visualization {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .sat-axis {
+            margin-bottom: 15px;
+        }
+
+        .sat-axis-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: var(--primary-color);
+        }
+
+        .sat-projection {
+            height: 30px;
+            background-color: #e8f0fe;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sat-projection-overlap {
+            position: absolute;
+            height: 100%;
+            background-color: var(--warning-color);
+            opacity: 0.7;
+        }
+
+        .sat-projection-a {
+            position: absolute;
+            height: 100%;
+            background-color: var(--primary-color);
+            opacity: 0.7;
+        }
+
+        .sat-projection-b {
+            position: absolute;
+            height: 100%;
+            background-color: var(--secondary-color);
+            opacity: 0.7;
+        }
+
+        .sat-result {
+            font-weight: 500;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .collision {
+            color: var(--danger-color);
+        }
+
+        .no-collision {
+            color: var(--secondary-color);
+        }
+
+        /* 投影面样式 */
+        .projection-plane {
+            position: absolute;
+            width: 100%;
+            height: 60px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 300px;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                position: absolute;
+                height: 100%;
+            }
+
+            .sidebar-left {
+                left: 0;
+            }
+
+            .sidebar-right {
+                right: 0;
+            }
+
+            #left-sidebar-toggle {
+                left: auto;
+                right: 10px;
+            }
+
+            #right-sidebar-toggle {
+                right: auto;
+                left: 10px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div id="app-container">
+    <!-- 左侧边栏 -->
+    <div class="sidebar sidebar-left">
+        <div class="sidebar-header">
+            <div class="sidebar-title">OBB 控制面板</div>
+            <button class="toggle-sidebar" id="toggle-left-sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+        <div class="sidebar-content">
+            <div class="control-panel">
+                <div class="panel-title">模式设置</div>
+                <div class="form-group">
+                    <div class="btn-group">
+                        <button id="mode-2d" class="btn btn-primary active">2D 模式</button>
+                        <button id="mode-3d" class="btn btn-secondary">3D 模式</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-title">OBB A 设置</div>
+                <div class="form-group">
+                    <label>位置</label>
+                    <div class="range-container">
+                        <input type="range" id="obb-a-x" min="-5" max="5" step="0.1" value="-1">
+                        <input type="number" id="obb-a-x-value" value="-1" step="0.1">
+                    </div>
+                    <div class="range-container">
+                        <input type="range" id="obb-a-y" min="-5" max="5" step="0.1" value="0">
+                        <input type="number" id="obb-a-y-value" value="0" step="0.1">
+                    </div>
+                    <div class="range-container" id="obb-a-z-container" style="display: none;">
+                        <input type="range" id="obb-a-z" min="-5" max="5" step="0.1" value="0">
+                        <input type="number" id="obb-a-z-value" value="0" step="0.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>尺寸</label>
+                    <div class="range-container">
+                        <input type="range" id="obb-a-width" min="0.5" max="3" step="0.1" value="1.5">
+                        <input type="number" id="obb-a-width-value" value="1.5" step="0.1">
+                    </div>
+                    <div class="range-container">
+                        <input type="range" id="obb-a-height" min="0.5" max="3" step="0.1" value="1">
+                        <input type="number" id="obb-a-height-value" value="1" step="0.1">
+                    </div>
+                    <div class="range-container" id="obb-a-depth-container" style="display: none;">
+                        <input type="range" id="obb-a-depth" min="0.5" max="3" step="0.1" value="1">
+                        <input type="number" id="obb-a-depth-value" value="1" step="0.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>旋转角度 (度)</label>
+                    <div class="range-container">
+                        <input type="range" id="obb-a-rotation-x" min="-180" max="180" step="1" value="30">
+                        <input type="number" id="obb-a-rotation-x-value" value="30" step="1">
+                    </div>
+                    <div class="range-container">
+                        <input type="range" id="obb-a-rotation-y" min="-180" max="180" step="1" value="0">
+                        <input type="number" id="obb-a-rotation-y-value" value="0" step="1">
+                    </div>
+                    <div class="range-container" id="obb-a-rotation-z-container" style="display: none;">
+                        <input type="range" id="obb-a-rotation-z" min="-180" max="180" step="1" value="0">
+                        <input type="number" id="obb-a-rotation-z-value" value="0" step="1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-title">OBB B 设置</div>
+                <div class="form-group">
+                    <label>位置</label>
+                    <div class="range-container">
+                        <input type="range" id="obb-b-x" min="-5" max="5" step="0.1" value="1">
+                        <input type="number" id="obb-b-x-value" value="1" step="0.1">
+                    </div>
+                    <div class="range-container">
+                        <input type="range" id="obb-b-y" min="-5" max="5" step="0.1" value="0">
+                        <input type="number" id="obb-b-y-value" value="0" step="0.1">
+                    </div>
+                    <div class="range-container" id="obb-b-z-container" style="display: none;">
+                        <input type="range" id="obb-b-z" min="-5" max="5" step="0.1" value="0">
+                        <input type="number" id="obb-b-z-value" value="0" step="0.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>尺寸</label>
+                    <div class="range-container">
+                        <input type="range" id="obb-b-width" min="0.5" max="3" step="0.1" value="1">
+                        <input type="number" id="obb-b-width-value" value="1" step="0.1">
+                    </div>
+                    <div class="range-container">
+                        <input type="range" id="obb-b-height" min="0.5" max="3" step="0.1" value="1.5">
+                        <input type="number" id="obb-b-height-value" value="1.5" step="0.1">
+                    </div>
+                    <div class="range-container" id="obb-b-depth-container" style="display: none;">
+                        <input type="range" id="obb-b-depth" min="0.5" max="3" step="0.1" value="1">
+                        <input type="number" id="obb-b-depth-value" value="1" step="0.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>旋转角度 (度)</label>
+                    <div class="range-container">
+                        <input type="range" id="obb-b-rotation-x" min="-180" max="180" step="1" value="0">
+                        <input type="number" id="obb-b-rotation-x-value" value="0" step="1">
+                    </div>
+                    <div class="range-container">
+                        <input type="range" id="obb-b-rotation-y" min="-180" max="180" step="1" value="0">
+                        <input type="number" id="obb-b-rotation-y-value" value="0" step="1">
+                    </div>
+                    <div class="range-container" id="obb-b-rotation-z-container" style="display: none;">
+                        <input type="range" id="obb-b-rotation-z" min="-180" max="180" step="1" value="-30">
+                        <input type="number" id="obb-b-rotation-z-value" value="-30" step="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 左侧边栏展开按钮 -->
+    <button id="left-sidebar-toggle" class="sidebar-toggle-button" style="display: none;">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+
+    <!-- 主内容区域 -->
+    <div id="main-content">
+        <div id="mode-tabs">
+            <div class="mode-tab active" data-mode="visualization">可视化模式</div>
+            <div class="mode-tab" data-mode="sat-demo">分离轴定理演示</div>
+            <div class="mode-tab" data-mode="projection">投影分析</div>
+        </div>
+
+        <div id="renderer-container">
+            <div id="view-controls">
+                <button id="reset-view" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-sync-alt"></i> 重置视图
+                </button>
+                <button id="toggle-axes" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrows-alt"></i> 坐标轴
+                </button>
+                <button id="toggle-grid" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-th"></i> 网格
+                </button>
+            </div>
+
+            <div id="info-panel">
+                <div id="collision-status">碰撞状态: <span class="no-collision">无碰撞</span></div>
+                <div id="separating-axis">分离轴: 无</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧边栏 -->
+    <div class="sidebar sidebar-right">
+        <div class="sidebar-header">
+            <div class="sidebar-title">分离轴定理分析</div>
+            <button class="toggle-sidebar" id="toggle-right-sidebar">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="sidebar-content">
+            <div class="control-panel">
+                <div class="panel-title">显示选项</div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-obb-a" checked>
+                        <label for="show-obb-a">显示 OBB A</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-obb-b" checked>
+                        <label for="show-obb-b">显示 OBB B</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-axes" checked>
+                        <label for="show-axes">显示坐标轴</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-grid" checked>
+                        <label for="show-grid">显示网格</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-vertices" checked>
+                        <label for="show-vertices">显示顶点</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-normals">
+                        <label for="show-normals">显示法线</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-projections">
+                        <label for="show-projections">显示投影</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-title">分离轴定理设置</div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="auto-test-sat" checked>
+                        <label for="auto-test-sat">自动检测碰撞</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="highlight-separating-axis" checked>
+                        <label for="highlight-separating-axis">高亮分离轴</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="show-all-axes">
+                        <label for="show-all-axes">显示所有测试轴</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button id="test-sat" class="btn btn-primary">
+                        <i class="fas fa-play"></i> 测试分离轴
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-title">分离轴定理结果</div>
+                <div id="sat-results">
+                    <div class="sat-visualization">
+                        <p>调整OBB位置和旋转后点击"测试分离轴"按钮</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧边栏展开按钮 -->
+    <button id="right-sidebar-toggle" class="sidebar-toggle-button" style="display: none;">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/utils/BufferGeometryUtils.js"></script>
+<script>
+    // 主应用类
+    class OBBLearningApp {
+        constructor() {
+            this.mode = '2d'; // '2d' 或 '3d'
+            this.viewMode = 'visualization'; // 'visualization', 'sat-demo', 'projection'
+            this.isColliding = false;
+            this.separatingAxis = null;
+            this.testAxes = [];
+            this.vertexSpheres = [];
+            this.normalLines = [];
+            this.projectionVisuals = [];
+
+            this.initScene();
+            this.initEventListeners();
+            this.createDefaultOBBs();
+            this.update();
+        }
+
+        initScene() {
+            // 创建Three.js场景
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0xf0f0f0);
+
+            // 渲染器
+            this.renderer = new THREE.WebGLRenderer({ antialias: true });
+            this.renderer.setSize(document.getElementById('renderer-container').clientWidth,
+                document.getElementById('renderer-container').clientHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('renderer-container').appendChild(this.renderer.domElement);
+
+            // 相机
+            this.camera = new THREE.PerspectiveCamera(
+                60,
+                this.renderer.domElement.clientWidth / this.renderer.domElement.clientHeight,
+                0.1,
+                1000
+            );
+            this.camera.position.set(5, 5, 5);
+            this.camera.lookAt(0, 0, 0);
+
+            // 控制器
+            this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+            this.controls.enableDamping = true;
+            this.controls.dampingFactor = 0.05;
+
+            // 坐标轴辅助
+            this.axesHelper = new THREE.AxesHelper(3);
+            this.scene.add(this.axesHelper);
+
+            // 网格地面
+            this.gridHelper = new THREE.GridHelper(10, 10);
+            this.scene.add(this.gridHelper);
+
+            // 光源
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            this.scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            this.scene.add(directionalLight);
+
+            // 动画循环
+            this.animate = this.animate.bind(this);
+            this.animate();
+        }
+
+        initEventListeners() {
+            // 窗口大小调整
+            window.addEventListener('resize', () => {
+                this.camera.aspect = this.renderer.domElement.clientWidth / this.renderer.domElement.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(this.renderer.domElement.clientWidth, this.renderer.domElement.clientHeight);
+            });
+
+            // 模式切换
+            document.getElementById('mode-2d').addEventListener('click', () => {
+                this.setMode('2d');
+                document.getElementById('mode-2d').classList.add('active');
+                document.getElementById('mode-2d').classList.remove('btn-secondary');
+                document.getElementById('mode-2d').classList.add('btn-primary');
+
+                document.getElementById('mode-3d').classList.remove('active');
+                document.getElementById('mode-3d').classList.remove('btn-primary');
+                document.getElementById('mode-3d').classList.add('btn-secondary');
+
+                // 更新OBB位置和旋转
+                this.updateOBBs();
+            });
+
+            document.getElementById('mode-3d').addEventListener('click', () => {
+                this.setMode('3d');
+                document.getElementById('mode-3d').classList.add('active');
+                document.getElementById('mode-3d').classList.remove('btn-secondary');
+                document.getElementById('mode-3d').classList.add('btn-primary');
+
+                document.getElementById('mode-2d').classList.remove('active');
+                document.getElementById('mode-2d').classList.remove('btn-primary');
+                document.getElementById('mode-2d').classList.add('btn-secondary');
+
+                // 更新OBB位置和旋转
+                this.updateOBBs();
+            });
+
+            // 视图控制
+            document.getElementById('reset-view').addEventListener('click', () => {
+                this.camera.position.set(5, 5, 5);
+                this.camera.lookAt(0, 0, 0);
+                this.controls.reset();
+            });
+
+            document.getElementById('toggle-axes').addEventListener('click', () => {
+                this.axesHelper.visible = !this.axesHelper.visible;
+                document.getElementById('show-axes').checked = this.axesHelper.visible;
+            });
+
+            document.getElementById('toggle-grid').addEventListener('click', () => {
+                this.gridHelper.visible = !this.gridHelper.visible;
+                document.getElementById('show-grid').checked = this.gridHelper.visible;
+            });
+
+            // 显示选项
+            document.getElementById('show-axes').addEventListener('change', (e) => {
+                this.axesHelper.visible = e.target.checked;
+            });
+
+            document.getElementById('show-grid').addEventListener('change', (e) => {
+                this.gridHelper.visible = e.target.checked;
+            });
+
+            document.getElementById('show-obb-a').addEventListener('change', (e) => {
+                this.obbA.mesh.visible = e.target.checked;
+                this.obbA.edges.visible = e.target.checked;
+                this.updateVisualization();
+            });
+
+            document.getElementById('show-obb-b').addEventListener('change', (e) => {
+                this.obbB.mesh.visible = e.target.checked;
+                this.obbB.edges.visible = e.target.checked;
+                this.updateVisualization();
+            });
+
+            document.getElementById('show-vertices').addEventListener('change', (e) => {
+                this.updateVisualization();
+            });
+
+            document.getElementById('show-normals').addEventListener('change', (e) => {
+                this.updateVisualization();
+            });
+
+            document.getElementById('show-projections').addEventListener('change', (e) => {
+                this.updateVisualization();
+            });
+
+            document.getElementById('highlight-separating-axis').addEventListener('change', (e) => {
+                this.updateVisualization();
+            });
+
+            document.getElementById('show-all-axes').addEventListener('change', (e) => {
+                this.updateVisualization();
+            });
+
+            // 侧边栏切换
+            document.getElementById('toggle-left-sidebar').addEventListener('click', (e) => {
+                this.toggleSidebar('.sidebar-left', '#left-sidebar-toggle');
+            });
+
+            document.getElementById('toggle-right-sidebar').addEventListener('click', (e) => {
+                this.toggleSidebar('.sidebar-right', '#right-sidebar-toggle');
+            });
+
+            // 侧边栏展开按钮
+            document.getElementById('left-sidebar-toggle').addEventListener('click', (e) => {
+                this.toggleSidebar('.sidebar-left', '#left-sidebar-toggle');
+            });
+
+            document.getElementById('right-sidebar-toggle').addEventListener('click', (e) => {
+                this.toggleSidebar('.sidebar-right', '#right-sidebar-toggle');
+            });
+
+            // 标签页切换
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    this.viewMode = tab.dataset.mode;
+                    this.updateVisualization();
+                });
+            });
+
+            // 分离轴测试
+            document.getElementById('test-sat').addEventListener('click', () => {
+                this.testSAT();
+            });
+
+            // 自动检测复选框
+            document.getElementById('auto-test-sat').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.testSAT();
+                }
+            });
+
+            // 绑定所有输入控件
+            this.bindInputControls();
+        }
+
+        toggleSidebar(sidebarSelector, toggleButtonSelector) {
+            const sidebar = document.querySelector(sidebarSelector);
+            const toggleButton = document.querySelector(toggleButtonSelector);
+
+            sidebar.classList.toggle('collapsed');
+
+            if (sidebar.classList.contains('collapsed')) {
+                toggleButton.style.display = 'flex';
+            } else {
+                toggleButton.style.display = 'none';
+            }
+        }
+
+        setMode(mode) {
+            this.mode = mode;
+
+            // 显示/隐藏3D相关控件
+            const is3D = mode === '3d';
+            document.getElementById('obb-a-z-container').style.display = is3D ? 'flex' : 'none';
+            document.getElementById('obb-a-depth-container').style.display = is3D ? 'flex' : 'none';
+            document.getElementById('obb-a-rotation-z-container').style.display = is3D ? 'flex' : 'none';
+            document.getElementById('obb-b-z-container').style.display = is3D ? 'flex' : 'none';
+            document.getElementById('obb-b-depth-container').style.display = is3D ? 'flex' : 'none';
+            document.getElementById('obb-b-rotation-z-container').style.display = is3D ? 'flex' : 'none';
+        }
+
+        bindInputControls() {
+            // OBB A 控制
+            this.bindRangeAndNumberInput('obb-a-x', 'obb-a-x-value');
+            this.bindRangeAndNumberInput('obb-a-y', 'obb-a-y-value');
+            this.bindRangeAndNumberInput('obb-a-z', 'obb-a-z-value');
+            this.bindRangeAndNumberInput('obb-a-width', 'obb-a-width-value');
+            this.bindRangeAndNumberInput('obb-a-height', 'obb-a-height-value');
+            this.bindRangeAndNumberInput('obb-a-depth', 'obb-a-depth-value');
+            this.bindRangeAndNumberInput('obb-a-rotation-x', 'obb-a-rotation-x-value');
+            this.bindRangeAndNumberInput('obb-a-rotation-y', 'obb-a-rotation-y-value');
+            this.bindRangeAndNumberInput('obb-a-rotation-z', 'obb-a-rotation-z-value');
+
+            // OBB B 控制
+            this.bindRangeAndNumberInput('obb-b-x', 'obb-b-x-value');
+            this.bindRangeAndNumberInput('obb-b-y', 'obb-b-y-value');
+            this.bindRangeAndNumberInput('obb-b-z', 'obb-b-z-value');
+            this.bindRangeAndNumberInput('obb-b-width', 'obb-b-width-value');
+            this.bindRangeAndNumberInput('obb-b-height', 'obb-b-height-value');
+            this.bindRangeAndNumberInput('obb-b-depth', 'obb-b-depth-value');
+            this.bindRangeAndNumberInput('obb-b-rotation-x', 'obb-b-rotation-x-value');
+            this.bindRangeAndNumberInput('obb-b-rotation-y', 'obb-b-rotation-y-value');
+            this.bindRangeAndNumberInput('obb-b-rotation-z', 'obb-b-rotation-z-value');
+        }
+
+        bindRangeAndNumberInput(rangeId, numberId) {
+            const rangeInput = document.getElementById(rangeId);
+            const numberInput = document.getElementById(numberId);
+
+            const updateHandler = () => {
+                numberInput.value = rangeInput.value;
+                this.update();
+            };
+
+            rangeInput.addEventListener('input', updateHandler);
+            rangeInput.addEventListener('change', updateHandler);
+
+            numberInput.addEventListener('input', () => {
+                rangeInput.value = numberInput.value;
+                this.update();
+            });
+        }
+
+        createDefaultOBBs() {
+            // 创建OBB A
+            this.obbA = {
+                position: new THREE.Vector3(-1, 0, 0),
+                size: new THREE.Vector3(1.5, 1, 1),
+                rotation: new THREE.Euler(
+                    THREE.MathUtils.degToRad(30),
+                    THREE.MathUtils.degToRad(0),
+                    THREE.MathUtils.degToRad(0)
+                ),
+                color: 0x4285f4,
+                mesh: null,
+                edges: null,
+                vertices: [],
+                normals: []
+            };
+
+            // 创建OBB B
+            this.obbB = {
+                position: new THREE.Vector3(1, 0, 0),
+                size: new THREE.Vector3(1, 1.5, 1),
+                rotation: new THREE.Euler(
+                    THREE.MathUtils.degToRad(0),
+                    THREE.MathUtils.degToRad(0),
+                    THREE.MathUtils.degToRad(-30)
+                ),
+                color: 0x34a853,
+                mesh: null,
+                edges: null,
+                vertices: [],
+                normals: []
+            };
+
+            this.updateOBBs();
+        }
+
+        updateOBBs() {
+            // 更新OBB A参数
+            this.obbA.position.set(
+                parseFloat(document.getElementById('obb-a-x').value),
+                parseFloat(document.getElementById('obb-a-y').value),
+                this.mode === '3d' ? parseFloat(document.getElementById('obb-a-z').value) : 0
+            );
+
+            this.obbA.size.set(
+                parseFloat(document.getElementById('obb-a-width').value),
+                parseFloat(document.getElementById('obb-a-height').value),
+                this.mode === '3d' ? parseFloat(document.getElementById('obb-a-depth').value) : 1
+            );
+
+            this.obbA.rotation.set(
+                THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-a-rotation-x').value)),
+                this.mode === '3d' ? THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-a-rotation-y').value)) : 0,
+                this.mode === '3d' ? THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-a-rotation-z').value)) : 0
+            );
+
+            // 更新OBB B参数
+            this.obbB.position.set(
+                parseFloat(document.getElementById('obb-b-x').value),
+                parseFloat(document.getElementById('obb-b-y').value),
+                this.mode === '3d' ? parseFloat(document.getElementById('obb-b-z').value) : 0
+            );
+
+            this.obbB.size.set(
+                parseFloat(document.getElementById('obb-b-width').value),
+                parseFloat(document.getElementById('obb-b-height').value),
+                this.mode === '3d' ? parseFloat(document.getElementById('obb-b-depth').value) : 1
+            );
+
+            this.obbB.rotation.set(
+                THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-b-rotation-x').value)),
+                this.mode === '3d' ? THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-b-rotation-y').value)) : 0,
+                this.mode === '3d' ? THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-b-rotation-z').value)) :
+                    THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb-b-rotation-z').value))
+            );
+
+            // 重新创建OBB网格
+            this.createOBBMesh(this.obbA);
+            this.createOBBMesh(this.obbB);
+
+            // 计算顶点和法线
+            this.calculateOBBVerticesAndNormals(this.obbA);
+            this.calculateOBBVerticesAndNormals(this.obbB);
+
+            // 自动检测碰撞
+            if (document.getElementById('auto-test-sat').checked) {
+                this.testSAT();
+            }
+        }
+
+        createOBBMesh(obb) {
+            // 移除旧的网格
+            if (obb.mesh) this.scene.remove(obb.mesh);
+            if (obb.edges) this.scene.remove(obb.edges);
+
+            // 创建几何体
+            const geometry = new THREE.BoxGeometry(obb.size.x, obb.size.y, obb.size.z);
+
+            // 应用旋转
+            const quaternion = new THREE.Quaternion().setFromEuler(obb.rotation);
+            geometry.applyQuaternion(quaternion);
+
+            // 应用平移
+            geometry.translate(obb.position.x, obb.position.y, obb.position.z);
+
+            // 创建网格
+            const material = new THREE.MeshPhongMaterial({
+                color: obb.color,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+
+            obb.mesh = new THREE.Mesh(geometry, material);
+            this.scene.add(obb.mesh);
+
+            // 创建边线
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 });
+            obb.edges = new THREE.LineSegments(edges, lineMaterial);
+            this.scene.add(obb.edges);
+        }
+
+        calculateOBBVerticesAndNormals(obb) {
+            // 计算OBB的局部顶点（未旋转和未平移）
+            const halfSize = obb.size.clone().multiplyScalar(0.5);
+            const localVertices = [
+                new THREE.Vector3(-halfSize.x, -halfSize.y, -halfSize.z), // 0
+                new THREE.Vector3(halfSize.x, -halfSize.y, -halfSize.z),  // 1
+                new THREE.Vector3(halfSize.x, halfSize.y, -halfSize.z),   // 2
+                new THREE.Vector3(-halfSize.x, halfSize.y, -halfSize.z),  // 3
+                new THREE.Vector3(-halfSize.x, -halfSize.y, halfSize.z),  // 4
+                new THREE.Vector3(halfSize.x, -halfSize.y, halfSize.z),   // 5
+                new THREE.Vector3(halfSize.x, halfSize.y, halfSize.z),    // 6
+                new THREE.Vector3(-halfSize.x, halfSize.y, halfSize.z)    // 7
+            ];
+
+            // 应用旋转和平移
+            const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(obb.rotation);
+            obb.vertices = localVertices.map(v => {
+                return v.applyMatrix4(rotationMatrix).add(obb.position);
+            });
+
+            // 计算法线 (2D模式下只使用XY平面的边法线)
+            obb.normals = [];
+
+            if (this.mode === '2d') {
+                // 2D模式下只需要计算XY平面的边法线
+                const edges = [
+                    [0, 1], [1, 2], [2, 3], [3, 0] // 只使用前面4个顶点
+                ];
+
+                for (const [i, j] of edges) {
+                    const edge = new THREE.Vector3().subVectors(obb.vertices[j], obb.vertices[i]);
+                    const normal = new THREE.Vector3(-edge.y, edge.x, 0).normalize();
+                    obb.normals.push(normal);
+                }
+            } else {
+                // 3D模式下需要计算所有面的法线
+                const faces = [
+                    [0, 1, 2, 3], // 前面
+                    [4, 5, 6, 7], // 后面
+                    [0, 1, 5, 4], // 底面
+                    [2, 3, 7, 6], // 顶面
+                    [0, 3, 7, 4], // 左面
+                    [1, 2, 6, 5]  // 右面
+                ];
+
+                for (const face of faces) {
+                    const v0 = obb.vertices[face[0]];
+                    const v1 = obb.vertices[face[1]];
+                    const v2 = obb.vertices[face[2]];
+
+                    const edge1 = new THREE.Vector3().subVectors(v1, v0);
+                    const edge2 = new THREE.Vector3().subVectors(v2, v0);
+                    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+                    obb.normals.push(normal);
+                }
+            }
+        }
+
+        testSAT() {
+            // 收集所有需要测试的轴
+            this.testAxes = [];
+
+            // 添加OBB A的法线
+            this.testAxes.push(...this.obbA.normals);
+
+            // 添加OBB B的法线
+            this.testAxes.push(...this.obbB.normals);
+
+            // 在3D模式下，还需要添加两个OBB边的叉积
+            if (this.mode === '3d') {
+                for (const normalA of this.obbA.normals) {
+                    for (const normalB of this.obbB.normals) {
+                        const cross = new THREE.Vector3().crossVectors(normalA, normalB);
+                        if (cross.length() > 0.001) { // 忽略接近零的向量
+                            cross.normalize();
+                            this.testAxes.push(cross);
+                        }
+                    }
+                }
+            }
+
+            // 测试所有轴
+            this.isColliding = true;
+            this.separatingAxis = null;
+
+            for (const axis of this.testAxes) {
+                if (axis.length() < 0.001) continue; // 忽略零向量
+
+                // 投影OBB A和OBB B到轴上
+                const projA = this.projectOBB(this.obbA, axis);
+                const projB = this.projectOBB(this.obbB, axis);
+
+                // 检查投影是否重叠
+                if (projA.max < projB.min || projB.max < projA.min) {
+                    // 找到分离轴
+                    this.isColliding = false;
+                    this.separatingAxis = axis;
+                    break;
+                }
+            }
+
+            // 更新UI
+            this.updateCollisionStatus();
+            this.updateSATResults();
+            this.updateVisualization();
+        }
+
+        projectOBB(obb, axis) {
+            let min = Infinity;
+            let max = -Infinity;
+
+            for (const vertex of obb.vertices) {
+                const projection = vertex.dot(axis);
+                min = Math.min(min, projection);
+                max = Math.max(max, projection);
+            }
+
+            return { min, max };
+        }
+
+        updateCollisionStatus() {
+            const statusElement = document.getElementById('collision-status');
+            const axisElement = document.getElementById('separating-axis');
+
+            if (this.isColliding) {
+                statusElement.innerHTML = '碰撞状态: <span class="collision">碰撞中</span>';
+                axisElement.textContent = '分离轴: 无 (所有轴都有重叠)';
+            } else {
+                statusElement.innerHTML = '碰撞状态: <span class="no-collision">无碰撞</span>';
+
+                if (this.separatingAxis) {
+                    const axis = this.separatingAxis;
+                    axisElement.textContent = `分离轴: (${axis.x.toFixed(2)}, ${axis.y.toFixed(2)}, ${axis.z.toFixed(2)})`;
+                } else {
+                    axisElement.textContent = '分离轴: 无';
+                }
+            }
+        }
+
+        updateSATResults() {
+            const resultsContainer = document.getElementById('sat-results');
+            resultsContainer.innerHTML = '';
+
+            const satPanel = document.createElement('div');
+            satPanel.className = 'sat-visualization';
+
+            if (this.testAxes.length === 0) {
+                satPanel.innerHTML = '<p>点击"测试分离轴"按钮查看结果</p>';
+                resultsContainer.appendChild(satPanel);
+                return;
+            }
+
+            // 显示分离轴测试结果
+            if (this.isColliding) {
+                satPanel.innerHTML += `
+                        <div class="sat-result collision">
+                            <i class="fas fa-times-circle"></i> 碰撞检测: 发生碰撞 (所有测试轴都有重叠)
+                        </div>
+                    `;
+            } else {
+                satPanel.innerHTML += `
+                        <div class="sat-result no-collision">
+                            <i class="fas fa-check-circle"></i> 碰撞检测: 无碰撞 (找到分离轴)
+                        </div>
+                    `;
+            }
+
+            // 显示每个轴的测试结果
+            for (let i = 0; i < this.testAxes.length; i++) {
+                const axis = this.testAxes[i];
+                if (axis.length() < 0.001) continue;
+
+                const projA = this.projectOBB(this.obbA, axis);
+                const projB = this.projectOBB(this.obbB, axis);
+
+                const isSeparating = projA.max < projB.min || projB.max < projA.min;
+                const overlap = isSeparating ? 0 : Math.min(projA.max, projB.max) - Math.max(projA.min, projB.min);
+
+                const axisElement = document.createElement('div');
+                axisElement.className = 'sat-axis';
+
+                const axisTitle = document.createElement('div');
+                axisTitle.className = 'sat-axis-title';
+                axisTitle.textContent = `测试轴 ${i+1}: (${axis.x.toFixed(2)}, ${axis.y.toFixed(2)}, ${axis.z.toFixed(2)})`;
+
+                const projectionElement = document.createElement('div');
+                projectionElement.className = 'sat-projection';
+
+                // 计算投影可视化
+                const minProj = Math.min(projA.min, projB.min);
+                const maxProj = Math.max(projA.max, projB.max);
+                const totalLength = maxProj - minProj;
+
+                if (totalLength > 0) {
+                    const aStart = (projA.min - minProj) / totalLength;
+                    const aLength = (projA.max - projA.min) / totalLength;
+
+                    const bStart = (projB.min - minProj) / totalLength;
+                    const bLength = (projB.max - projB.min) / totalLength;
+
+                    const aProjection = document.createElement('div');
+                    aProjection.className = 'sat-projection-a';
+                    aProjection.style.left = `${aStart * 100}%`;
+                    aProjection.style.width = `${aLength * 100}%`;
+
+                    const bProjection = document.createElement('div');
+                    bProjection.className = 'sat-projection-b';
+                    bProjection.style.left = `${bStart * 100}%`;
+                    bProjection.style.width = `${bLength * 100}%`;
+
+                    if (!isSeparating) {
+                        const overlapStart = Math.max(aStart, bStart);
+                        const overlapEnd = Math.min(aStart + aLength, bStart + bLength);
+                        const overlapLength = overlapEnd - overlapStart;
+
+                        const overlapProjection = document.createElement('div');
+                        overlapProjection.className = 'sat-projection-overlap';
+                        overlapProjection.style.left = `${overlapStart * 100}%`;
+                        overlapProjection.style.width = `${overlapLength * 100}%`;
+
+                        projectionElement.appendChild(overlapProjection);
+                    }
+
+                    projectionElement.appendChild(aProjection);
+                    projectionElement.appendChild(bProjection);
+                }
+
+                const axisResult = document.createElement('div');
+                axisResult.style.fontSize = '13px';
+                axisResult.textContent = isSeparating
+                    ? '→ 分离轴: 投影不重叠'
+                    : `→ 重叠: ${overlap.toFixed(2)}`;
+
+                if (isSeparating && this.separatingAxis && axis.equals(this.separatingAxis)) {
+                    axisResult.textContent += ' (主分离轴)';
+                    axisResult.style.fontWeight = 'bold';
+                    axisResult.style.color = 'var(--danger-color)';
+                }
+
+                axisElement.appendChild(axisTitle);
+                axisElement.appendChild(projectionElement);
+                axisElement.appendChild(axisResult);
+
+                satPanel.appendChild(axisElement);
+            }
+
+            resultsContainer.appendChild(satPanel);
+        }
+
+        clearVisualHelpers() {
+            // 清除顶点标记
+            this.vertexSpheres.forEach(sphere => this.scene.remove(sphere));
+            this.vertexSpheres = [];
+
+            // 清除法线显示
+            this.normalLines.forEach(line => this.scene.remove(line));
+            this.normalLines = [];
+
+            // 清除投影显示
+            this.projectionVisuals.forEach(visual => this.scene.remove(visual));
+            this.projectionVisuals = [];
+        }
+
+        createProjectionPlane(axis, projA, projB, colorA, colorB) {
+            // 创建投影面
+            const planeWidth = 0.5;
+            const planeLength = Math.max(projA.max, projB.max) - Math.min(projA.min, projB.min);
+
+            // 创建A的投影面
+            const aGeometry = new THREE.PlaneGeometry(planeWidth, projA.max - projA.min);
+            const aMaterial = new THREE.MeshBasicMaterial({
+                color: colorA,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.5
+            });
+            const aPlane = new THREE.Mesh(aGeometry, aMaterial);
+
+            // 创建B的投影面
+            const bGeometry = new THREE.PlaneGeometry(planeWidth, projB.max - projB.min);
+            const bMaterial = new THREE.MeshBasicMaterial({
+                color: colorB,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.5
+            });
+            const bPlane = new THREE.Mesh(bGeometry, bMaterial);
+
+            // 计算中心位置
+            const center = new THREE.Vector3(0, 0, 0);
+
+            // 计算旋转使平面与轴对齐
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.clone().normalize());
+
+            // 定位和旋转平面
+            aPlane.position.copy(axis.clone().multiplyScalar((projA.max + projA.min) / 2));
+            aPlane.setRotationFromQuaternion(quaternion);
+            aPlane.rotateX(Math.PI / 2); // 使平面垂直于轴
+
+            bPlane.position.copy(axis.clone().multiplyScalar((projB.max + projB.min) / 2));
+            bPlane.setRotationFromQuaternion(quaternion);
+            bPlane.rotateX(Math.PI / 2); // 使平面垂直于轴
+
+            // 添加重叠区域
+            let overlapPlane = null;
+            if (projA.max > projB.min && projB.max > projA.min) {
+                const overlapMin = Math.max(projA.min, projB.min);
+                const overlapMax = Math.min(projA.max, projB.max);
+
+                const overlapGeometry = new THREE.PlaneGeometry(planeWidth, overlapMax - overlapMin);
+                const overlapMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff9900,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                overlapPlane = new THREE.Mesh(overlapGeometry, overlapMaterial);
+                overlapPlane.position.copy(axis.clone().multiplyScalar((overlapMax + overlapMin) / 2));
+                overlapPlane.setRotationFromQuaternion(quaternion);
+                overlapPlane.rotateX(Math.PI / 2);
+            }
+
+            return { aPlane, bPlane, overlapPlane };
+        }
+
+        updateVisualization() {
+            // 清除之前的可视化辅助元素
+            this.clearVisualHelpers();
+
+            // 根据当前视图模式更新可视化
+            if (this.viewMode === 'visualization') {
+                // 常规可视化模式
+                this.obbA.mesh.visible = document.getElementById('show-obb-a').checked;
+                this.obbA.edges.visible = document.getElementById('show-obb-a').checked;
+
+                this.obbB.mesh.visible = document.getElementById('show-obb-b').checked;
+                this.obbB.edges.visible = document.getElementById('show-obb-b').checked;
+
+                // 显示顶点
+                if (document.getElementById('show-vertices').checked) {
+                    const sphereGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+                    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+                    // 显示OBB A的顶点
+                    for (let i = 0; i < this.obbA.vertices.length; i++) {
+                        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                        sphere.position.copy(this.obbA.vertices[i]);
+                        this.scene.add(sphere);
+                        this.vertexSpheres.push(sphere);
+                    }
+
+                    // 显示OBB B的顶点
+                    for (let i = 0; i < this.obbB.vertices.length; i++) {
+                        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                        sphere.position.copy(this.obbB.vertices[i]);
+                        this.scene.add(sphere);
+                        this.vertexSpheres.push(sphere);
+                    }
+                }
+
+                // 显示法线
+                if (document.getElementById('show-normals').checked) {
+                    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+
+                    // 显示OBB A的法线
+                    const centerA = new THREE.Vector3();
+                    this.obbA.vertices.forEach(v => centerA.add(v));
+                    centerA.divideScalar(this.obbA.vertices.length);
+
+                    for (const normal of this.obbA.normals) {
+                        const end = new THREE.Vector3().copy(centerA).add(normal.clone().multiplyScalar(0.5));
+                        const geometry = new THREE.BufferGeometry().setFromPoints([centerA, end]);
+                        const line = new THREE.Line(geometry, lineMaterial);
+                        this.scene.add(line);
+                        this.normalLines.push(line);
+                    }
+
+                    // 显示OBB B的法线
+                    const centerB = new THREE.Vector3();
+                    this.obbB.vertices.forEach(v => centerB.add(v));
+                    centerB.divideScalar(this.obbB.vertices.length);
+
+                    for (const normal of this.obbB.normals) {
+                        const end = new THREE.Vector3().copy(centerB).add(normal.clone().multiplyScalar(0.5));
+                        const geometry = new THREE.BufferGeometry().setFromPoints([centerB, end]);
+                        const line = new THREE.Line(geometry, lineMaterial);
+                        this.scene.add(line);
+                        this.normalLines.push(line);
+                    }
+                }
+
+            } else if (this.viewMode === 'sat-demo') {
+                // 分离轴定理演示模式
+                this.obbA.mesh.visible = document.getElementById('show-obb-a').checked;
+                this.obbA.edges.visible = document.getElementById('show-obb-a').checked;
+
+                this.obbB.mesh.visible = document.getElementById('show-obb-b').checked;
+                this.obbB.edges.visible = document.getElementById('show-obb-b').checked;
+
+                // 高亮显示分离轴
+                if (document.getElementById('highlight-separating-axis').checked && this.separatingAxis) {
+                    const center = new THREE.Vector3();
+                    this.obbA.vertices.concat(this.obbB.vertices).forEach(v => center.add(v));
+                    center.divideScalar(this.obbA.vertices.length + this.obbB.vertices.length);
+
+                    const axis = this.separatingAxis;
+                    const start = new THREE.Vector3().copy(center).sub(axis.clone().multiplyScalar(5));
+                    const end = new THREE.Vector3().copy(center).add(axis.clone().multiplyScalar(5));
+
+                    const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+                    const lineMaterial = new THREE.LineBasicMaterial({
+                        color: 0xff00ff,
+                        linewidth: 3
+                    });
+                    const line = new THREE.Line(geometry, lineMaterial);
+                    this.scene.add(line);
+                    this.projectionVisuals.push(line);
+                }
+
+                // 显示所有测试轴
+                if (document.getElementById('show-all-axes').checked) {
+                    const center = new THREE.Vector3();
+                    this.obbA.vertices.concat(this.obbB.vertices).forEach(v => center.add(v));
+                    center.divideScalar(this.obbA.vertices.length + this.obbB.vertices.length);
+
+                    for (const axis of this.testAxes) {
+                        const start = new THREE.Vector3().copy(center).sub(axis.clone().multiplyScalar(3));
+                        const end = new THREE.Vector3().copy(center).add(axis.clone().multiplyScalar(3));
+
+                        const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+                        const lineMaterial = new THREE.LineBasicMaterial({
+                            color: 0x888888,
+                            linewidth: 1
+                        });
+                        const line = new THREE.Line(geometry, lineMaterial);
+                        this.scene.add(line);
+                        this.projectionVisuals.push(line);
+                    }
+                }
+
+            } else if (this.viewMode === 'projection') {
+                // 投影分析模式
+                this.obbA.mesh.visible = document.getElementById('show-obb-a').checked;
+                this.obbA.edges.visible = document.getElementById('show-obb-a').checked;
+
+                this.obbB.mesh.visible = document.getElementById('show-obb-b').checked;
+                this.obbB.edges.visible = document.getElementById('show-obb-b').checked;
+
+                // 显示投影
+                if (document.getElementById('show-projections').checked && this.testAxes.length > 0) {
+                    const axis = this.testAxes[0]; // 显示第一个测试轴的投影
+                    const projA = this.projectOBB(this.obbA, axis);
+                    const projB = this.projectOBB(this.obbB, axis);
+
+                    // 创建投影面可视化
+                    const projection = this.createProjectionPlane(
+                        axis,
+                        projA,
+                        projB,
+                        this.obbA.color,
+                        this.obbB.color
+                    );
+
+                    this.scene.add(projection.aPlane);
+                    this.scene.add(projection.bPlane);
+                    this.projectionVisuals.push(projection.aPlane, projection.bPlane);
+
+                    if (projection.overlapPlane) {
+                        this.scene.add(projection.overlapPlane);
+                        this.projectionVisuals.push(projection.overlapPlane);
+                    }
+
+                    // 绘制轴
+                    const axisStart = new THREE.Vector3().copy(axis).multiplyScalar(-5);
+                    const axisEnd = new THREE.Vector3().copy(axis).multiplyScalar(5);
+
+                    const axisGeometry = new THREE.BufferGeometry().setFromPoints([axisStart, axisEnd]);
+                    const axisMaterial = new THREE.LineBasicMaterial({
+                        color: 0x000000,
+                        linewidth: 1
+                    });
+                    const axisLine = new THREE.Line(axisGeometry, axisMaterial);
+                    this.scene.add(axisLine);
+                    this.projectionVisuals.push(axisLine);
+                }
+            }
+        }
+
+        update() {
+            this.updateOBBs();
+            this.updateVisualization();
+        }
+
+        animate() {
+            requestAnimationFrame(this.animate);
+            this.controls.update();
+            this.renderer.render(this.scene, this.camera);
+        }
+    }
+
+    // 初始化应用
+    const app = new OBBLearningApp();
+</script>
+</body>
+</html>

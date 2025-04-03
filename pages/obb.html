@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBB碰撞检测 - 半尺寸向量与旋转矩阵可视化</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        #info-panel.hidden {
+            transform: translateX(-100%);
+        }
+        #controls-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            width: 300px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        #controls-panel.hidden {
+            transform: translateX(100%);
+        }
+        .panel-toggle {
+            position: absolute;
+            top: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 101;
+            cursor: pointer;
+        }
+        #toggle-info {
+            left: 10px;
+        }
+        #toggle-controls {
+            right: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .control-group {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        .control-group h3 {
+            margin: 5px 0;
+        }
+        .explanation {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+        }
+        .explanation h4 {
+            margin: 5px 0;
+            color: #4CAF50;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #555;
+            padding: 5px;
+            text-align: center;
+        }
+        th {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+        #satInfo {
+            margin-top: 10px;
+        }
+        .matrix-table {
+            font-family: monospace;
+            font-size: 14px;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <button id="toggle-info" class="panel-toggle">隐藏信息面板</button>
+    <div id="info-panel">
+        <h2>OBB核心概念可视化</h2>
+        <div id="collisionInfo">状态: 未碰撞</div>
+        <div id="satInfo">分离轴: 无</div>
+
+        <div class="explanation">
+            <h4>OBB数学表示</h4>
+            <p>OBB由以下参数定义:</p>
+            <ul>
+                <li><strong>中心点(c)</strong>: OBB的中心位置</li>
+                <li><strong>半尺寸向量(h)</strong>: 从中心到各面的距离 (宽度/2, 高度/2, 深度/2)</li>
+                <li><strong>旋转矩阵(R)</strong>: 3×3矩阵，表示OBB的朝向</li>
+            </ul>
+
+            <h4>OBB1参数</h4>
+            <div class="matrix-table">
+                <p>半尺寸向量 h1: <span id="halfSize1">-</span></p>
+                <p>旋转矩阵 R1:</p>
+                <div id="rotationMatrix1"></div>
+            </div>
+
+            <h4>OBB2参数</h4>
+            <div class="matrix-table">
+                <p>半尺寸向量 h2: <span id="halfSize2">-</span></p>
+                <p>旋转矩阵 R2:</p>
+                <div id="rotationMatrix2"></div>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h4>分离轴定理(SAT)原理</h4>
+            <p>1. 计算15个潜在分离轴:</p>
+            <ul>
+                <li>OBB1的3个轴 (R1的列向量)</li>
+                <li>OBB2的3个轴 (R2的列向量)</li>
+                <li>两两轴的叉积 (9个轴)</li>
+            </ul>
+            <p>2. 在每个轴上投影OBB，检查投影是否重叠</p>
+            <p>3. 如果存在一个轴上的投影不重叠，则OBB不相交</p>
+        </div>
+    </div>
+
+    <button id="toggle-controls" class="panel-toggle">隐藏控制面板</button>
+    <div id="controls-panel">
+        <div class="control-group">
+            <h3>OBB1设置</h3>
+            <label>
+                宽度: <span id="obb1WidthValue">2.0</span>
+                <input type="range" id="obb1Width" min="0.5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                高度: <span id="obb1HeightValue">1.0</span>
+                <input type="range" id="obb1Height" min="0.5" max="5" step="0.1" value="1.0">
+            </label>
+            <label>
+                深度: <span id="obb1DepthValue">1.5</span>
+                <input type="range" id="obb1Depth" min="0.5" max="5" step="0.1" value="1.5">
+            </label>
+            <label>
+                X: <span id="obb1XValue">-1.5</span>
+                <input type="range" id="obb1X" min="-5" max="5" step="0.1" value="-1.5">
+            </label>
+            <label>
+                Y: <span id="obb1YValue">0.0</span>
+                <input type="range" id="obb1Y" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <label>
+                Z: <span id="obb1ZValue">0.0</span>
+                <input type="range" id="obb1Z" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <label>
+                绕X旋转: <span id="obb1RotXValue">0</span>°
+                <input type="range" id="obb1RotX" min="0" max="360" step="1" value="0">
+            </label>
+            <label>
+                绕Y旋转: <span id="obb1RotYValue">0</span>°
+                <input type="range" id="obb1RotY" min="0" max="360" step="1" value="0">
+            </label>
+            <label>
+                绕Z旋转: <span id="obb1RotZValue">0</span>°
+                <input type="range" id="obb1RotZ" min="0" max="360" step="1" value="0">
+            </label>
+            <button id="randomOBB1Pos">随机OBB1位置</button>
+        </div>
+
+        <div class="control-group">
+            <h3>OBB2设置</h3>
+            <label>
+                宽度: <span id="obb2WidthValue">1.5</span>
+                <input type="range" id="obb2Width" min="0.5" max="5" step="0.1" value="1.5">
+            </label>
+            <label>
+                高度: <span id="obb2HeightValue">1.0</span>
+                <input type="range" id="obb2Height" min="0.5" max="5" step="0.1" value="1.0">
+            </label>
+            <label>
+                深度: <span id="obb2DepthValue">2.0</span>
+                <input type="range" id="obb2Depth" min="0.5" max="5" step="0.1" value="2.0">
+            </label>
+            <label>
+                X: <span id="obb2XValue">1.5</span>
+                <input type="range" id="obb2X" min="-5" max="5" step="0.1" value="1.5">
+            </label>
+            <label>
+                Y: <span id="obb2YValue">0.0</span>
+                <input type="range" id="obb2Y" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <label>
+                Z: <span id="obb2ZValue">0.0</span>
+                <input type="range" id="obb2Z" min="-5" max="5" step="0.1" value="0.0">
+            </label>
+            <label>
+                绕X旋转: <span id="obb2RotXValue">0</span>°
+                <input type="range" id="obb2RotX" min="0" max="360" step="1" value="0">
+            </label>
+            <label>
+                绕Y旋转: <span id="obb2RotYValue">0</span>°
+                <input type="range" id="obb2RotY" min="0" max="360" step="1" value="0">
+            </label>
+            <label>
+                绕Z旋转: <span id="obb2RotZValue">0</span>°
+                <input type="range" id="obb2RotZ" min="0" max="360" step="1" value="0">
+            </label>
+            <button id="randomOBB2Pos">随机OBB2位置</button>
+        </div>
+
+        <div class="control-group">
+            <h3>可视化选项</h3>
+            <label>
+                <input type="checkbox" id="showAxes" checked>
+                显示坐标轴
+            </label>
+            <label>
+                <input type="checkbox" id="showOBB1Axes" checked>
+                显示OBB1局部轴
+            </label>
+            <label>
+                <input type="checkbox" id="showOBB2Axes" checked>
+                显示OBB2局部轴
+            </label>
+            <label>
+                <input type="checkbox" id="showHalfSizeVectors" checked>
+                显示半尺寸向量
+            </label>
+            <label>
+                <input type="checkbox" id="showSATAxis" checked>
+                显示分离轴
+            </label>
+            <label>
+                <input type="checkbox" id="showProjection" checked>
+                显示投影
+            </label>
+            <button id="nextSATAxis">下一个分离轴</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script>
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 添加光源
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // 添加网格辅助
+    const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x444444);
+    scene.add(gridHelper);
+
+    // 添加坐标轴辅助
+    const axesHelper = new THREE.AxesHelper(3);
+    scene.add(axesHelper);
+
+    // 创建OBB
+    let obb1, obb2;
+    let obb1Axes = [], obb2Axes = [];
+    let obb1HalfSizeVectors = [], obb2HalfSizeVectors = [];
+    let satAxisLine, projectionPlane1, projectionPlane2;
+    let currentSatAxisIndex = 0;
+    let satAxes = [];
+
+    // 初始化场景
+    initScene();
+
+    // 设置轨道控制器
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.05;
+
+    // 窗口大小调整
+    window.addEventListener('resize', function () {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 面板显示/隐藏控制
+    document.getElementById('toggle-info').addEventListener('click', function() {
+        const panel = document.getElementById('info-panel');
+        panel.classList.toggle('hidden');
+        this.textContent = panel.classList.contains('hidden') ? '显示信息面板' : '隐藏信息面板';
+    });
+
+    document.getElementById('toggle-controls').addEventListener('click', function() {
+        const panel = document.getElementById('controls-panel');
+        panel.classList.toggle('hidden');
+        this.textContent = panel.classList.contains('hidden') ? '显示控制面板' : '隐藏控制面板';
+    });
+
+    // 初始化场景函数
+    function initScene() {
+        // 清除现有物体
+        if (obb1) scene.remove(obb1);
+        if (obb2) scene.remove(obb2);
+        obb1Axes.forEach(axis => scene.remove(axis));
+        obb2Axes.forEach(axis => scene.remove(axis));
+        obb1HalfSizeVectors.forEach(vec => scene.remove(vec));
+        obb2HalfSizeVectors.forEach(vec => scene.remove(vec));
+        obb1Axes = [];
+        obb2Axes = [];
+        obb1HalfSizeVectors = [];
+        obb2HalfSizeVectors = [];
+        if (satAxisLine) scene.remove(satAxisLine);
+        if (projectionPlane1) scene.remove(projectionPlane1);
+        if (projectionPlane2) scene.remove(projectionPlane2);
+
+        // 创建OBB1
+        const obb1Width = parseFloat(document.getElementById('obb1Width').value);
+        const obb1Height = parseFloat(document.getElementById('obb1Height').value);
+        const obb1Depth = parseFloat(document.getElementById('obb1Depth').value);
+        const obb1Geometry = new THREE.BoxGeometry(obb1Width, obb1Height, obb1Depth);
+        const obb1Material = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.7
+        });
+        obb1 = new THREE.Mesh(obb1Geometry, obb1Material);
+        obb1.position.set(
+            parseFloat(document.getElementById('obb1X').value),
+            parseFloat(document.getElementById('obb1Y').value),
+            parseFloat(document.getElementById('obb1Z').value)
+        );
+        obb1.rotation.set(
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb1RotX').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb1RotY').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb1RotZ').value))
+        );
+        scene.add(obb1);
+
+        // 创建OBB1的局部坐标轴
+        const axisLength = Math.max(obb1Width, obb1Height, obb1Depth) * 0.6;
+        const xAxis = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            axisLength,
+            0xff0000,
+            0.1,
+            0.1
+        );
+        const yAxis = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, 0, 0),
+            axisLength,
+            0x00ff00,
+            0.1,
+            0.1
+        );
+        const zAxis = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, 0),
+            axisLength,
+            0x0000ff,
+            0.1,
+            0.1
+        );
+
+        xAxis.position.copy(obb1.position);
+        yAxis.position.copy(obb1.position);
+        zAxis.position.copy(obb1.position);
+
+        obb1Axes.push(xAxis, yAxis, zAxis);
+        scene.add(xAxis);
+        scene.add(yAxis);
+        scene.add(zAxis);
+
+        // 创建OBB1的半尺寸向量可视化
+        const halfSizeMaterial = new THREE.LineBasicMaterial({ color: 0xffff00 });
+        const halfSize1X = createHalfSizeVector(obb1.position, new THREE.Vector3(1, 0, 0), obb1Width/2, halfSizeMaterial);
+        const halfSize1Y = createHalfSizeVector(obb1.position, new THREE.Vector3(0, 1, 0), obb1Height/2, halfSizeMaterial);
+        const halfSize1Z = createHalfSizeVector(obb1.position, new THREE.Vector3(0, 0, 1), obb1Depth/2, halfSizeMaterial);
+
+        obb1HalfSizeVectors.push(halfSize1X, halfSize1Y, halfSize1Z);
+        scene.add(halfSize1X);
+        scene.add(halfSize1Y);
+        scene.add(halfSize1Z);
+
+        // 创建OBB2
+        const obb2Width = parseFloat(document.getElementById('obb2Width').value);
+        const obb2Height = parseFloat(document.getElementById('obb2Height').value);
+        const obb2Depth = parseFloat(document.getElementById('obb2Depth').value);
+        const obb2Geometry = new THREE.BoxGeometry(obb2Width, obb2Height, obb2Depth);
+        const obb2Material = new THREE.MeshStandardMaterial({
+            color: 0x0000ff,
+            transparent: true,
+            opacity: 0.7
+        });
+        obb2 = new THREE.Mesh(obb2Geometry, obb2Material);
+        obb2.position.set(
+            parseFloat(document.getElementById('obb2X').value),
+            parseFloat(document.getElementById('obb2Y').value),
+            parseFloat(document.getElementById('obb2Z').value)
+        );
+        obb2.rotation.set(
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb2RotX').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb2RotY').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb2RotZ').value))
+        );
+        scene.add(obb2);
+
+        // 创建OBB2的局部坐标轴
+        const axisLength2 = Math.max(obb2Width, obb2Height, obb2Depth) * 0.6;
+        const xAxis2 = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            axisLength2,
+            0xff0000,
+            0.1,
+            0.1
+        );
+        const yAxis2 = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, 0, 0),
+            axisLength2,
+            0x00ff00,
+            0.1,
+            0.1
+        );
+        const zAxis2 = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, 0),
+            axisLength2,
+            0x0000ff,
+            0.1,
+            0.1
+        );
+
+        xAxis2.position.copy(obb2.position);
+        yAxis2.position.copy(obb2.position);
+        zAxis2.position.copy(obb2.position);
+
+        obb2Axes.push(xAxis2, yAxis2, zAxis2);
+        scene.add(xAxis2);
+        scene.add(yAxis2);
+        scene.add(zAxis2);
+
+        // 创建OBB2的半尺寸向量可视化
+        const halfSize2X = createHalfSizeVector(obb2.position, new THREE.Vector3(1, 0, 0), obb2Width/2, halfSizeMaterial);
+        const halfSize2Y = createHalfSizeVector(obb2.position, new THREE.Vector3(0, 1, 0), obb2Height/2, halfSizeMaterial);
+        const halfSize2Z = createHalfSizeVector(obb2.position, new THREE.Vector3(0, 0, 1), obb2Depth/2, halfSizeMaterial);
+
+        obb2HalfSizeVectors.push(halfSize2X, halfSize2Y, halfSize2Z);
+        scene.add(halfSize2X);
+        scene.add(halfSize2Y);
+        scene.add(halfSize2Z);
+
+        // 创建分离轴可视化
+        const satAxisGeometry = new THREE.BufferGeometry();
+        const satAxisMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+        satAxisLine = new THREE.Line(satAxisGeometry, satAxisMaterial);
+        scene.add(satAxisLine);
+
+        // 创建投影面可视化
+        const projectionMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.3
+        });
+
+        // OBB1的投影面
+        const projectionGeometry1 = new THREE.PlaneGeometry(10, 10);
+        projectionPlane1 = new THREE.Mesh(projectionGeometry1, projectionMaterial);
+        scene.add(projectionPlane1);
+
+        // OBB2的投影面
+        const projectionGeometry2 = new THREE.PlaneGeometry(10, 10);
+        projectionPlane2 = new THREE.Mesh(projectionGeometry2, projectionMaterial.clone());
+        projectionPlane2.material.color.setHex(0x0000ff);
+        scene.add(projectionPlane2);
+
+        // 更新可视化
+        updateVisualization();
+    }
+
+    // 创建半尺寸向量可视化
+    function createHalfSizeVector(position, direction, length, material) {
+        const points = [
+            position.clone(),
+            new THREE.Vector3().copy(position).addScaledVector(direction, length)
+        ];
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        return new THREE.Line(geometry, material);
+    }
+
+    // 获取OBB的局部坐标轴
+    function getOBBAxes(obb) {
+        const axes = [];
+        const matrix = new THREE.Matrix4().extractRotation(obb.matrix);
+
+        // X轴
+        const xAxis = new THREE.Vector3(1, 0, 0).applyMatrix4(matrix).normalize();
+        axes.push(xAxis);
+
+        // Y轴
+        const yAxis = new THREE.Vector3(0, 1, 0).applyMatrix4(matrix).normalize();
+        axes.push(yAxis);
+
+        // Z轴
+        const zAxis = new THREE.Vector3(0, 0, 1).applyMatrix4(matrix).normalize();
+        axes.push(zAxis);
+
+        return axes;
+    }
+
+    // 获取旋转矩阵
+    function getRotationMatrix(obb) {
+        const matrix = new THREE.Matrix4().extractRotation(obb.matrix);
+        return {
+            x1: matrix.elements[0], y1: matrix.elements[1], z1: matrix.elements[2],
+            x2: matrix.elements[4], y2: matrix.elements[5], z2: matrix.elements[6],
+            x3: matrix.elements[8], y3: matrix.elements[9], z3: matrix.elements[10]
+        };
+    }
+
+    // 格式化旋转矩阵显示
+    function formatRotationMatrix(matrix) {
+        return `
+                <table class="matrix-table">
+                    <tr>
+                        <td>${matrix.x1.toFixed(2)}</td>
+                        <td>${matrix.y1.toFixed(2)}</td>
+                        <td>${matrix.z1.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>${matrix.x2.toFixed(2)}</td>
+                        <td>${matrix.y2.toFixed(2)}</td>
+                        <td>${matrix.z2.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>${matrix.x3.toFixed(2)}</td>
+                        <td>${matrix.y3.toFixed(2)}</td>
+                        <td>${matrix.z3.toFixed(2)}</td>
+                    </tr>
+                </table>
+            `;
+    }
+
+    // 计算所有可能的分离轴
+    function calculateSATAxes() {
+        const axes = [];
+
+        // 获取两个OBB的局部坐标轴
+        const axes1 = getOBBAxes(obb1);
+        const axes2 = getOBBAxes(obb2);
+
+        // 添加OBB1的3个轴
+        axes.push(...axes1);
+
+        // 添加OBB2的3个轴
+        axes.push(...axes2);
+
+        // 添加两两轴的叉积(9个轴)
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                const crossAxis = new THREE.Vector3().crossVectors(axes1[i], axes2[j]);
+                if (crossAxis.length() > 0.001) { // 避免零向量
+                    crossAxis.normalize();
+                    axes.push(crossAxis);
+                }
+            }
+        }
+
+        return axes;
+    }
+
+    // 计算OBB在轴上的投影
+    function projectOBB(obb, axis) {
+        const vertices = [];
+        const geometry = obb.geometry;
+        const matrix = obb.matrixWorld;
+
+        // 获取OBB的8个顶点
+        for (let i = 0; i < geometry.attributes.position.count; i++) {
+            const vertex = new THREE.Vector3();
+            vertex.fromBufferAttribute(geometry.attributes.position, i);
+            vertex.applyMatrix4(matrix);
+            vertices.push(vertex);
+        }
+
+        // 计算投影范围
+        let min = Infinity;
+        let max = -Infinity;
+
+        vertices.forEach(vertex => {
+            const projection = vertex.dot(axis);
+            min = Math.min(min, projection);
+            max = Math.max(max, projection);
+        });
+
+        return { min, max };
+    }
+
+    // 检测OBB碰撞
+    function checkOBBCollision() {
+        satAxes = calculateSATAxes();
+        let collision = true;
+        let separatingAxis = null;
+
+        // 检查所有分离轴
+        for (let i = 0; i < satAxes.length; i++) {
+            const axis = satAxes[i];
+            const proj1 = projectOBB(obb1, axis);
+            const proj2 = projectOBB(obb2, axis);
+
+            // 检查投影是否重叠
+            if (proj1.max < proj2.min || proj2.max < proj1.min) {
+                collision = false;
+                separatingAxis = axis;
+                break;
+            }
+        }
+
+        // 更新分离轴可视化
+        updateSATAxisVisualization();
+
+        // 更新碰撞信息
+        if (collision) {
+            document.getElementById('collisionInfo').textContent = "状态: 碰撞中";
+            document.getElementById('collisionInfo').style.color = "#ff0000";
+            document.getElementById('satInfo').textContent = "分离轴: 无 (所有轴上都重叠)";
+        } else {
+            document.getElementById('collisionInfo').textContent = "状态: 未碰撞";
+            document.getElementById('collisionInfo').style.color = "#00ff00";
+            document.getElementById('satInfo').textContent =
+                `分离轴: ${getAxisName(currentSatAxisIndex)} (投影不重叠)`;
+        }
+
+        return collision;
+    }
+
+    // 获取分离轴名称
+    function getAxisName(index) {
+        if (index < 3) return `OBB1轴${['X','Y','Z'][index]}`;
+        if (index < 6) return `OBB2轴${['X','Y','Z'][index-3]}`;
+        return `叉积轴${index-5}`;
+    }
+
+    // 更新分离轴可视化
+    function updateSATAxisVisualization() {
+        if (satAxes.length === 0) return;
+
+        // 确保当前轴索引有效
+        currentSatAxisIndex = currentSatAxisIndex % satAxes.length;
+        const axis = satAxes[currentSatAxisIndex];
+        const center = new THREE.Vector3().addVectors(obb1.position, obb2.position).multiplyScalar(0.5);
+
+        // 更新分离轴线
+        const length = 5;
+        const points = [
+            new THREE.Vector3().copy(center).addScaledVector(axis, -length),
+            new THREE.Vector3().copy(center).addScaledVector(axis, length)
+        ];
+        satAxisLine.geometry.setFromPoints(points);
+
+        // 更新投影面
+        if (document.getElementById('showProjection').checked) {
+            // OBB1的投影面
+            const proj1 = projectOBB(obb1, axis);
+            const planeNormal = axis.clone();
+            const planePosition = new THREE.Vector3().copy(center).addScaledVector(axis, proj1.max);
+
+            projectionPlane1.position.copy(planePosition);
+            projectionPlane1.quaternion.setFromUnitVectors(
+                new THREE.Vector3(0, 0, 1),
+                planeNormal
+            );
+            projectionPlane1.scale.set(0.5, 0.5, 1);
+            projectionPlane1.visible = true;
+
+            // OBB2的投影面
+            const proj2 = projectOBB(obb2, axis);
+            const planePosition2 = new THREE.Vector3().copy(center).addScaledVector(axis, proj2.min);
+
+            projectionPlane2.position.copy(planePosition2);
+            projectionPlane2.quaternion.setFromUnitVectors(
+                new THREE.Vector3(0, 0, 1),
+                planeNormal
+            );
+            projectionPlane2.scale.set(0.5, 0.5, 1);
+            projectionPlane2.visible = true;
+        } else {
+            projectionPlane1.visible = false;
+            projectionPlane2.visible = false;
+        }
+
+        // 更新分离轴显示
+        satAxisLine.visible = document.getElementById('showSATAxis').checked;
+        document.getElementById('satInfo').textContent =
+            `当前分离轴: ${getAxisName(currentSatAxisIndex)} (${axis.x.toFixed(2)}, ${axis.y.toFixed(2)}, ${axis.z.toFixed(2)})`;
+    }
+
+    // 更新半尺寸向量可视化
+    function updateHalfSizeVectors() {
+        // 更新OBB1的半尺寸向量
+        const obb1Width = parseFloat(document.getElementById('obb1Width').value);
+        const obb1Height = parseFloat(document.getElementById('obb1Height').value);
+        const obb1Depth = parseFloat(document.getElementById('obb1Depth').value);
+
+        const obb1Matrix = new THREE.Matrix4().extractRotation(obb1.matrix);
+        const xAxis1 = new THREE.Vector3(1, 0, 0).applyMatrix4(obb1Matrix);
+        const yAxis1 = new THREE.Vector3(0, 1, 0).applyMatrix4(obb1Matrix);
+        const zAxis1 = new THREE.Vector3(0, 0, 1).applyMatrix4(obb1Matrix);
+
+        updateHalfSizeVector(obb1HalfSizeVectors[0], obb1.position, xAxis1, obb1Width/2);
+        updateHalfSizeVector(obb1HalfSizeVectors[1], obb1.position, yAxis1, obb1Height/2);
+        updateHalfSizeVector(obb1HalfSizeVectors[2], obb1.position, zAxis1, obb1Depth/2);
+
+        // 更新OBB2的半尺寸向量
+        const obb2Width = parseFloat(document.getElementById('obb2Width').value);
+        const obb2Height = parseFloat(document.getElementById('obb2Height').value);
+        const obb2Depth = parseFloat(document.getElementById('obb2Depth').value);
+
+        const obb2Matrix = new THREE.Matrix4().extractRotation(obb2.matrix);
+        const xAxis2 = new THREE.Vector3(1, 0, 0).applyMatrix4(obb2Matrix);
+        const yAxis2 = new THREE.Vector3(0, 1, 0).applyMatrix4(obb2Matrix);
+        const zAxis2 = new THREE.Vector3(0, 0, 1).applyMatrix4(obb2Matrix);
+
+        updateHalfSizeVector(obb2HalfSizeVectors[0], obb2.position, xAxis2, obb2Width/2);
+        updateHalfSizeVector(obb2HalfSizeVectors[1], obb2.position, yAxis2, obb2Height/2);
+        updateHalfSizeVector(obb2HalfSizeVectors[2], obb2.position, zAxis2, obb2Depth/2);
+
+        // 更新半尺寸向量显示
+        const showHalfSize = document.getElementById('showHalfSizeVectors').checked;
+        obb1HalfSizeVectors.forEach(vec => vec.visible = showHalfSize);
+        obb2HalfSizeVectors.forEach(vec => vec.visible = showHalfSize);
+
+        // 更新信息面板中的半尺寸向量和旋转矩阵
+        document.getElementById('halfSize1').textContent =
+            `(${(obb1Width/2).toFixed(2)}, ${(obb1Height/2).toFixed(2)}, ${(obb1Depth/2).toFixed(2)})`;
+        document.getElementById('halfSize2').textContent =
+            `(${(obb2Width/2).toFixed(2)}, ${(obb2Height/2).toFixed(2)}, ${(obb2Depth/2).toFixed(2)})`;
+
+        const rotMatrix1 = getRotationMatrix(obb1);
+        const rotMatrix2 = getRotationMatrix(obb2);
+
+        document.getElementById('rotationMatrix1').innerHTML = formatRotationMatrix(rotMatrix1);
+        document.getElementById('rotationMatrix2').innerHTML = formatRotationMatrix(rotMatrix2);
+    }
+
+    // 更新单个半尺寸向量
+    function updateHalfSizeVector(line, position, direction, length) {
+        const points = [
+            position.clone(),
+            new THREE.Vector3().copy(position).addScaledVector(direction, length)
+        ];
+        line.geometry.setFromPoints(points);
+    }
+
+    // 更新可视化
+    function updateVisualization() {
+        // 更新OBB1
+        obb1.position.set(
+            parseFloat(document.getElementById('obb1X').value),
+            parseFloat(document.getElementById('obb1Y').value),
+            parseFloat(document.getElementById('obb1Z').value)
+        );
+        obb1.rotation.set(
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb1RotX').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb1RotY').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb1RotZ').value))
+        );
+
+        // 更新OBB1的局部坐标轴
+        obb1Axes.forEach(axis => axis.position.copy(obb1.position));
+        const obb1Matrix = new THREE.Matrix4().extractRotation(obb1.matrix);
+        obb1Axes[0].setDirection(new THREE.Vector3(1, 0, 0).applyMatrix4(obb1Matrix));
+        obb1Axes[1].setDirection(new THREE.Vector3(0, 1, 0).applyMatrix4(obb1Matrix));
+        obb1Axes[2].setDirection(new THREE.Vector3(0, 0, 1).applyMatrix4(obb1Matrix));
+
+        // 更新OBB2
+        obb2.position.set(
+            parseFloat(document.getElementById('obb2X').value),
+            parseFloat(document.getElementById('obb2Y').value),
+            parseFloat(document.getElementById('obb2Z').value)
+        );
+        obb2.rotation.set(
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb2RotX').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb2RotY').value)),
+            THREE.MathUtils.degToRad(parseFloat(document.getElementById('obb2RotZ').value))
+        );
+
+        // 更新OBB2的局部坐标轴
+        obb2Axes.forEach(axis => axis.position.copy(obb2.position));
+        const obb2Matrix = new THREE.Matrix4().extractRotation(obb2.matrix);
+        obb2Axes[0].setDirection(new THREE.Vector3(1, 0, 0).applyMatrix4(obb2Matrix));
+        obb2Axes[1].setDirection(new THREE.Vector3(0, 1, 0).applyMatrix4(obb2Matrix));
+        obb2Axes[2].setDirection(new THREE.Vector3(0, 0, 1).applyMatrix4(obb2Matrix));
+
+        // 更新半尺寸向量和旋转矩阵
+        updateHalfSizeVectors();
+
+        // 更新显示选项
+        axesHelper.visible = document.getElementById('showAxes').checked;
+        obb1Axes.forEach(axis => axis.visible = document.getElementById('showOBB1Axes').checked);
+        obb2Axes.forEach(axis => axis.visible = document.getElementById('showOBB2Axes').checked);
+
+        // 检查碰撞
+        checkOBBCollision();
+    }
+
+    // 随机OBB1位置
+    function randomizeOBB1Position() {
+        document.getElementById('obb1X').value = (Math.random() - 0.5) * 6;
+        document.getElementById('obb1Y').value = Math.random() * 3;
+        document.getElementById('obb1Z').value = (Math.random() - 0.5) * 6;
+        document.getElementById('obb1RotX').value = Math.floor(Math.random() * 360);
+        document.getElementById('obb1RotY').value = Math.floor(Math.random() * 360);
+        document.getElementById('obb1RotZ').value = Math.floor(Math.random() * 360);
+
+        document.getElementById('obb1XValue').textContent = document.getElementById('obb1X').value;
+        document.getElementById('obb1YValue').textContent = document.getElementById('obb1Y').value;
+        document.getElementById('obb1ZValue').textContent = document.getElementById('obb1Z').value;
+        document.getElementById('obb1RotXValue').textContent = document.getElementById('obb1RotX').value;
+        document.getElementById('obb1RotYValue').textContent = document.getElementById('obb1RotY').value;
+        document.getElementById('obb1RotZValue').textContent = document.getElementById('obb1RotZ').value;
+
+        updateVisualization();
+    }
+
+    // 随机OBB2位置
+    function randomizeOBB2Position() {
+        document.getElementById('obb2X').value = (Math.random() - 0.5) * 6;
+        document.getElementById('obb2Y').value = Math.random() * 3;
+        document.getElementById('obb2Z').value = (Math.random() - 0.5) * 6;
+        document.getElementById('obb2RotX').value = Math.floor(Math.random() * 360);
+        document.getElementById('obb2RotY').value = Math.floor(Math.random() * 360);
+        document.getElementById('obb2RotZ').value = Math.floor(Math.random() * 360);
+
+        document.getElementById('obb2XValue').textContent = document.getElementById('obb2X').value;
+        document.getElementById('obb2YValue').textContent = document.getElementById('obb2Y').value;
+        document.getElementById('obb2ZValue').textContent = document.getElementById('obb2Z').value;
+        document.getElementById('obb2RotXValue').textContent = document.getElementById('obb2RotX').value;
+        document.getElementById('obb2RotYValue').textContent = document.getElementById('obb2RotY').value;
+        document.getElementById('obb2RotZValue').textContent = document.getElementById('obb2RotZ').value;
+
+        updateVisualization();
+    }
+
+    // 事件监听
+    document.getElementById('obb1Width').addEventListener('input', function() {
+        document.getElementById('obb1WidthValue').textContent = this.value;
+        obb1.geometry.dispose();
+        obb1.geometry = new THREE.BoxGeometry(
+            parseFloat(this.value),
+            parseFloat(document.getElementById('obb1Height').value),
+            parseFloat(document.getElementById('obb1Depth').value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('obb1Height').addEventListener('input', function() {
+        document.getElementById('obb1HeightValue').textContent = this.value;
+        obb1.geometry.dispose();
+        obb1.geometry = new THREE.BoxGeometry(
+            parseFloat(document.getElementById('obb1Width').value),
+            parseFloat(this.value),
+            parseFloat(document.getElementById('obb1Depth').value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('obb1Depth').addEventListener('input', function() {
+        document.getElementById('obb1DepthValue').textContent = this.value;
+        obb1.geometry.dispose();
+        obb1.geometry = new THREE.BoxGeometry(
+            parseFloat(document.getElementById('obb1Width').value),
+            parseFloat(document.getElementById('obb1Height').value),
+            parseFloat(this.value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('obb1X').addEventListener('input', function() {
+        document.getElementById('obb1XValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb1Y').addEventListener('input', function() {
+        document.getElementById('obb1YValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb1Z').addEventListener('input', function() {
+        document.getElementById('obb1ZValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb1RotX').addEventListener('input', function() {
+        document.getElementById('obb1RotXValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb1RotY').addEventListener('input', function() {
+        document.getElementById('obb1RotYValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb1RotZ').addEventListener('input', function() {
+        document.getElementById('obb1RotZValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb2Width').addEventListener('input', function() {
+        document.getElementById('obb2WidthValue').textContent = this.value;
+        obb2.geometry.dispose();
+        obb2.geometry = new THREE.BoxGeometry(
+            parseFloat(this.value),
+            parseFloat(document.getElementById('obb2Height').value),
+            parseFloat(document.getElementById('obb2Depth').value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('obb2Height').addEventListener('input', function() {
+        document.getElementById('obb2HeightValue').textContent = this.value;
+        obb2.geometry.dispose();
+        obb2.geometry = new THREE.BoxGeometry(
+            parseFloat(document.getElementById('obb2Width').value),
+            parseFloat(this.value),
+            parseFloat(document.getElementById('obb2Depth').value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('obb2Depth').addEventListener('input', function() {
+        document.getElementById('obb2DepthValue').textContent = this.value;
+        obb2.geometry.dispose();
+        obb2.geometry = new THREE.BoxGeometry(
+            parseFloat(document.getElementById('obb2Width').value),
+            parseFloat(document.getElementById('obb2Height').value),
+            parseFloat(this.value)
+        );
+        updateVisualization();
+    });
+
+    document.getElementById('obb2X').addEventListener('input', function() {
+        document.getElementById('obb2XValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb2Y').addEventListener('input', function() {
+        document.getElementById('obb2YValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb2Z').addEventListener('input', function() {
+        document.getElementById('obb2ZValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb2RotX').addEventListener('input', function() {
+        document.getElementById('obb2RotXValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb2RotY').addEventListener('input', function() {
+        document.getElementById('obb2RotYValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('obb2RotZ').addEventListener('input', function() {
+        document.getElementById('obb2RotZValue').textContent = this.value;
+        updateVisualization();
+    });
+
+    document.getElementById('randomOBB1Pos').addEventListener('click', randomizeOBB1Position);
+    document.getElementById('randomOBB2Pos').addEventListener('click', randomizeOBB2Position);
+
+    document.getElementById('showAxes').addEventListener('change', updateVisualization);
+    document.getElementById('showOBB1Axes').addEventListener('change', updateVisualization);
+    document.getElementById('showOBB2Axes').addEventListener('change', updateVisualization);
+    document.getElementById('showHalfSizeVectors').addEventListener('change', updateVisualization);
+    document.getElementById('showSATAxis').addEventListener('change', updateVisualization);
+    document.getElementById('showProjection').addEventListener('change', updateVisualization);
+
+    document.getElementById('nextSATAxis').addEventListener('click', function() {
+        currentSatAxisIndex = (currentSatAxisIndex + 1) % satAxes.length;
+        updateSATAxisVisualization();
+    });
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        orbitControls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // 初始更新
+    updateVisualization();
+</script>
+</body>
+</html>
