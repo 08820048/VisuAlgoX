@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisuAlgoX - 让算法不再抽象</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <!-- 添加Font Awesome图标库 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/EffectComposer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/RenderPass.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/UnrealBloomPass.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -14,6 +17,13 @@
             --dark: #0f1621;
             --light: #e0e0e0;
             --accent: #ff5555;
+            --hologram: rgba(0, 150, 255, 0.15);
+            --bg-dark: #0f1621;
+            --bg-light: #f0f2f5;
+            --text-dark: #e0e0e0;
+            --text-light: #333;
+            --card-bg-dark: rgba(26, 36, 51, 0.7);
+            --card-bg-light: rgba(255, 255, 255, 0.9);
         }
 
         * {
@@ -21,13 +31,19 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            transition: background-color 0.5s, color 0.3s;
         }
 
         body {
-            background-color: var(--dark);
-            color: var(--light);
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
             overflow-x: hidden;
             position: relative;
+        }
+
+        body.light-mode {
+            background-color: var(--bg-light);
+            color: var(--text-light);
         }
 
         #bg-canvas {
@@ -37,17 +53,45 @@
             width: 100%;
             height: 100%;
             z-index: -1;
-            opacity: 0.3;
+            opacity: 0.7;
+        }
+
+        /* 日夜模式切换按钮 */
+        .theme-toggle {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            width: 50px;
+            height: 50px;
+            background: rgba(15, 22, 33, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 150, 255, 0.2);
+        }
+
+        .theme-toggle i {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .light-mode .theme-toggle {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 150, 255, 0.3);
         }
 
         /* GitHub图标样式 */
         .github-link {
-            position: absolute;
+            position: fixed;
             top: 30px;
             right: 30px;
             color: var(--primary);
             font-size: 2.5rem;
-            transition: all 0.3s ease;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000;
             text-decoration: none;
             background: rgba(15, 22, 33, 0.7);
@@ -61,6 +105,10 @@
             box-shadow: 0 0 15px rgba(0, 150, 255, 0.2);
         }
 
+        .light-mode .github-link {
+            background: rgba(255, 255, 255, 0.7);
+        }
+
         .github-link:hover {
             color: var(--secondary);
             transform: scale(1.1) rotate(10deg);
@@ -70,54 +118,89 @@
         /* 顶部标题 */
         .header {
             text-align: center;
-            padding: 2rem 1rem;
+            padding: 5rem 1rem 3rem;
             position: relative;
             z-index: 10;
-            background: linear-gradient(180deg, rgba(15,22,33,0.9) 0%, rgba(15,22,33,0.7) 100%);
-            backdrop-filter: blur(5px);
+            background: linear-gradient(180deg, rgba(15,22,33,0.9) 0%, transparent 100%);
+            backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(0, 150, 255, 0.3);
         }
 
+        .light-mode .header {
+            background: linear-gradient(180deg, rgba(240, 242, 245, 0.9) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(0, 150, 255, 0.2);
+        }
+
         .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
             background: linear-gradient(90deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            text-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
-            letter-spacing: 1px;
+            text-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+            letter-spacing: 2px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .header h1::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 3px;
         }
 
         .intro {
             max-width: 800px;
             margin: 0 auto;
-            font-size: 1.1rem;
-            line-height: 1.6;
+            font-size: 1.2rem;
+            line-height: 1.8;
             color: rgba(224, 224, 224, 0.9);
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.2);
+        }
+
+        .light-mode .intro {
+            color: rgba(51, 51, 51, 0.9);
         }
 
         /* 主容器 */
         .container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2rem;
-            padding: 2rem;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 3rem;
+            padding: 3rem;
             max-width: 1400px;
             margin: 0 auto;
+            position: relative;
+            z-index: 5;
         }
 
         /* 卡片样式 */
         .card {
-            background: rgba(26, 36, 51, 0.7);
-            border-radius: 12px;
+            background: var(--card-bg-dark);
+            border-radius: 15px;
             overflow: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
-            border: 1px solid rgba(0, 150, 255, 0.2);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             cursor: pointer;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .light-mode .card {
+            background: var(--card-bg-light);
+            border: 1px solid rgba(0, 150, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
         .card::before {
@@ -127,29 +210,67 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(0, 150, 255, 0.1) 0%, transparent 100%);
+            background: linear-gradient(135deg, rgba(0, 150, 255, 0.1) 0%, transparent 50%, rgba(0, 150, 255, 0.1) 100%);
             z-index: 1;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.5s;
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary), var(--accent), var(--primary));
+            background-size: 400%;
+            z-index: -1;
+            border-radius: 16px;
+            opacity: 0;
+            transition: 0.5s;
+            animation: hologramBorder 8s linear infinite;
+        }
+
+        @keyframes hologramBorder {
+            0% { background-position: 0 0; }
+            50% { background-position: 400% 0; }
+            100% { background-position: 0 0; }
         }
 
         .card:hover {
             transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0, 150, 255, 0.2);
-            border-color: rgba(0, 150, 255, 0.5);
+            box-shadow: 0 20px 50px rgba(0, 150, 255, 0.4);
+            border-color: rgba(0, 150, 255, 0.6);
         }
 
         .card:hover::before {
             opacity: 1;
         }
 
+        .card:hover::after {
+            opacity: 0.8;
+            filter: blur(10px);
+        }
+
         .card h3 {
-            padding: 1.0rem 1.5rem 1.0rem;
-            font-size: 1.3rem;
+            padding: 1.5rem 1.5rem 0;
+            font-size: 1.5rem;
             color: var(--primary);
             position: relative;
             z-index: 2;
             text-align: center;
+        }
+
+        .card h3::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 2px;
+            background: var(--primary);
         }
 
         .card img {
@@ -158,49 +279,119 @@
             object-fit: cover;
             display: block;
             opacity: 0.8;
-            transition: opacity 0.3s;
+            transition: all 0.5s;
+            filter: grayscale(30%) contrast(110%) brightness(0.9);
         }
 
         .card:hover img {
             opacity: 1;
+            filter: grayscale(0%) contrast(120%) brightness(1.1);
+            transform: scale(1.05);
         }
 
         .card p {
-            padding: 1rem 1.5rem 1.5rem;
+            padding: 1.5rem 1.5rem;
             color: rgba(224, 224, 224, 0.8);
-            line-height: 1.6;
-            font-size: 0.95rem;
+            line-height: 1.8;
+            font-size: 1rem;
             position: relative;
             z-index: 2;
+            flex-grow: 1;
+        }
+
+        .light-mode .card p {
+            color: rgba(51, 51, 51, 0.8);
+        }
+
+        /* 全息扫描效果 */
+        .hologram-scan {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(0deg, transparent, var(--hologram), transparent);
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            animation: scan 4s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: -100%; }
+            100% { top: 100%; }
+        }
+
+        .card:hover .hologram-scan {
+            opacity: 0.6;
         }
 
         /* 页脚 */
         .footer {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem;
             margin-top: 2rem;
             background: rgba(15, 22, 33, 0.8);
             border-top: 1px solid rgba(0, 150, 255, 0.3);
             font-size: 0.9rem;
             color: rgba(224, 224, 224, 0.7);
+            position: relative;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .light-mode .footer {
+            background: rgba(240, 242, 245, 0.8);
+            color: rgba(51, 51, 51, 0.7);
         }
 
         .footer a {
             color: var(--secondary);
             text-decoration: none;
-            transition: color 0.3s;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .footer a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--primary);
+            transition: width 0.3s;
         }
 
         .footer a:hover {
             color: var(--primary);
-            text-decoration: underline;
+        }
+
+        .footer a:hover::after {
+            width: 100%;
         }
 
         /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 2rem;
+                padding: 2rem;
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+            }
+        }
+
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
-                padding: 1rem;
+                padding: 1.5rem;
+            }
+
+            .header {
+                padding: 4rem 1rem 2rem;
             }
 
             .header h1 {
@@ -211,151 +402,165 @@
                 font-size: 1rem;
             }
 
-            .github-link {
+            .github-link, .theme-toggle {
                 top: 20px;
-                right: 20px;
-                font-size: 2rem;
                 width: 40px;
                 height: 40px;
+                font-size: 1.5rem;
             }
-        }
 
-        /* 科技风装饰元素 */
-        .tech-circle {
-            position: absolute;
-            border-radius: 50%;
-            border: 1px solid rgba(0, 150, 255, 0.3);
-            pointer-events: none;
-        }
+            .theme-toggle {
+                left: 20px;
+            }
 
-        /* 加载动画 */
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
-
-        /* 3D卡片效果 */
-        .card-3d {
-            transform-style: preserve-3d;
-            transition: transform 0.5s;
-        }
-
-        .card-3d:hover {
-            transform: rotateY(10deg) rotateX(5deg);
+            .github-link {
+                right: 20px;
+            }
         }
     </style>
 </head>
 <body>
-<!-- Three.js 背景 -->
+<!-- Three.js 背景画布 -->
 <canvas id="bg-canvas"></canvas>
+
+<!-- 日夜模式切换按钮 -->
+<div class="theme-toggle" id="themeToggle">
+    <i class="fas fa-moon"></i>
+</div>
+
+<!-- GitHub图标 -->
+<a href="https://github.com/08820048/VisuAlgoX" class="github-link" target="_blank" title="查看GitHub开源项目">
+    <i class="fab fa-github"></i>
+</a>
 
 <!-- 顶部介绍 -->
 <header class="header">
-    <!-- 添加GitHub图标链接 -->
-    <a href="https://github.com/08820048/VisuAlgoX" class="github-link" target="_blank" title="查看GitHub开源项目">
-        <i class="fab fa-github"></i>
-    </a>
     <h1>VisuAlgoX - 让算法不再抽象</h1>
     <p class="intro">专注于计算机科学和游戏开发等领域的可视化神站，助各位机友直观理解算法、数据结构、数学原理和图形渲染等技术。</p>
 </header>
 
-<!-- 可视化卡片容器 -->
+<!-- 可视化卡片容器 - 保持原有内容完全不变 -->
 <section class="container">
-    <div class="card card-3d" onclick="location.href='pages/array.html'">
+    <div class="card" onclick="location.href='pages/array.html'">
+        <div class="hologram-scan"></div>
         <h3>数组基本操作</h3>
         <img src="images/array.png" alt="数组可视化">
         <p>展示数组的存储方式、查找、插入和删除等基本操作。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/stack.html'">
+    <div class="card" onclick="location.href='pages/stack.html'">
+        <div class="hologram-scan"></div>
         <h3>栈的基本操作</h3>
         <img src="images/stack.png" alt="栈可视化">
         <p>演示栈的 FILO 结构，以及 push、pop 操作。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/queue.html'">
+    <div class="card" onclick="location.href='pages/queue.html'">
+        <div class="hologram-scan"></div>
         <h3>普通队列基本操作</h3>
         <img src="images/queue.png" alt="队列可视化">
         <p>模拟普通队列的 FIFO 规则。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/bezier.html'">
+    <div class="card" onclick="location.href='pages/bezier.html'">
+        <div class="hologram-scan"></div>
         <h3>贝赛尔曲线</h3>
         <img src="images/bezer.png" alt="贝塞尔曲线">
         <p>贝塞尔曲线（Bezier Curve）是一种用于计算机图形学中的数学曲线，广泛应用于动画、路径规划、矢量图形设计和许多其他图形领域。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/a_star.html'">
+    <div class="card" onclick="location.href='pages/a_star.html'">
+        <div class="hologram-scan"></div>
         <h3>A*寻路</h3>
         <img src="images/A.png" alt="A*寻路算法">
         <p>A 算法是一种高效的路径搜索算法，广泛应用于游戏 AI、机器人导航和地图应用。它结合了 Dijkstra 算法的最短路径搜索和贪心搜索的启发式方法，能够快速找到从起点到终点的最优路径。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/tree_traversal.html'">
+    <div class="card" onclick="location.href='pages/tree_traversal.html'">
+        <div class="hologram-scan"></div>
         <h3>二叉树基本遍历</h3>
         <img src="images/tree1.png" alt="二叉树基本遍历">
         <p>支持自定义数据动态构建二叉树病实现二叉树的四种基本遍历方式：前序遍历、中序遍历、后序遍历和层序遍历。它们按照不同的访问顺序来遍历二叉树中的所有节点。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/bubble_sort.html'">
+    <div class="card" onclick="location.href='pages/bubble_sort.html'">
+        <div class="hologram-scan"></div>
         <h3>冒泡排序</h3>
         <img src="images/bubble.png" alt="冒泡排序">
-        <p>冒泡排序是一种简单的排序算法，它通过重复遍历数组，每次比较相邻的两个元素并交换顺序，使较大的元素逐步“冒泡”到数组的末尾。</p>
+        <p>冒泡排序是一种简单的排序算法，它通过重复遍历数组，每次比较相邻的两个元素并交换顺序，使较大的元素逐步"冒泡"到数组的末尾。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/select_sort.html'">
+    <div class="card" onclick="location.href='pages/select_sort.html'">
+        <div class="hologram-scan"></div>
         <h3>选择排序</h3>
         <img src="images/select.png" alt="选择排序">
         <p>选择排序每轮在未排序的部分找到最小（或最大）的元素，并放到正确的位置。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/dijkstra.html'">
+    <div class="card" onclick="location.href='pages/dijkstra.html'">
+        <div class="hologram-scan"></div>
         <h3>Dijkstra算法</h3>
         <img src="images/dijkstra.png" alt="Dijkstra">
         <p>Dijkstra（迪杰斯特拉）算法是一种用于单源最短路径的算法，通常用于加权图，能够找到从一个起点到其他所有顶点的最短路径。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/kmp.html'">
+    <div class="card" onclick="location.href='pages/kmp.html'">
+        <div class="hologram-scan"></div>
         <h3>KMP算法</h3>
         <img src="images/kmp.png" alt="KMP算法">
         <p>KMP（Knuth-Morris-Pratt）算法 是 一种用于字符串匹配的高效算法，主要用于在一个文本字符串 T 中查找一个模式字符串 P 的所有出现位置。</p>
     </div>
-    <div class="card card-3d" onclick="location.href='pages/aabb.html'">
+    <div class="card" onclick="location.href='pages/aabb.html'">
+        <div class="hologram-scan"></div>
         <h3>AABB碰撞检测</h3>
         <img src="images/aabb.png" alt="KMP算法">
         <p>AABB（Axis-Aligned Bounding Box，轴对齐包围盒） 是一种 轴对齐的矩形或立方体边界框，用于 碰撞检测、物理模拟和计算几何 等领域。它的特点是 所有边都与坐标轴平行，这样可以大大简化碰撞检测计算。</p>
     </div>
 
-    <div class="card card-3d" onclick="location.href='pages/collision_1.html'">
+    <div class="card" onclick="location.href='pages/collision_1.html'">
+        <div class="hologram-scan"></div>
         <h3>碰撞检测辅助工具V1</h3>
         <img src="images/collision1.png" alt="多形状AABB包围盒">
         <p>多形状AABB包围盒,提供各种多形状的AABB包围盒计算以及多模式显示,包括碰撞模拟、直线连线等</p>
     </div>
 
-    <div class="card card-3d" onclick="location.href='pages/collision_2.html'">
+    <div class="card" onclick="location.href='pages/collision_2.html'">
+        <div class="hologram-scan"></div>
         <h3>碰撞检测辅助工具V2</h3>
         <img src="images/collision2.png" alt="多形状AABB包围盒">
         <p>与碰撞检测辅助工具V1共同服务于碰撞检测,但V2版本侧重于AABB的关键概念的理解和辅助计算,点位显示,原理理解等</p>
     </div>
 
-    <div class="card card-3d" onclick="location.href='pages/obb.html'">
+    <div class="card" onclick="location.href='pages/obb.html'">
+        <div class="hologram-scan"></div>
         <h3>OBB碰撞检测-核心概念</h3>
         <img src="images/obb.png" alt="OOB核心概念">
         <p>包含了OOB的半尺寸向量、旋转矩阵、分离轴等核心概念的基本演示和计算,支持参数动态调整!</p>
     </div>
 
-    <div class="card card-3d" onclick="location.href='pages/obb_1.html'">
+    <div class="card" onclick="location.href='pages/obb_1.html'">
+        <div class="hologram-scan"></div>
         <h3>OBB碰撞检测-旋转矩阵</h3>
         <img src="images/obb2.png" alt="旋转矩阵">
         <p>OBB碰撞检测-核心概念可视化,侧重旋转矩阵相关的计算、同样支持动态参数和鼠标操作!</p>
     </div>
 
-    <div class="card card-3d" onclick="location.href='pages/obb_2.html'">
+    <div class="card" onclick="location.href='pages/obb_2.html'">
+        <div class="hologram-scan"></div>
         <h3>OBB碰撞检测-顶点计算</h3>
         <img src="images/obb3.png" alt="旋转矩阵">
         <p>OBB碰撞检测-核心概念可视化,侧重八个顶点相关的计算、同样支持动态参数和鼠标操作!</p>
     </div>
 
-    <div class="card card-3d" onclick="location.href='pages/obb_3.html'">
+    <div class="card" onclick="location.href='pages/obb_3.html'">
+        <div class="hologram-scan"></div>
         <h3>OBB碰撞检测-分离轴定理<span style="color: #666666">(灰度中)</span></h3>
         <img src="images/sat.png" alt="旋转矩阵">
         <p>OBB碰撞检测-核心概念可视化,侧重分离轴定理、同样支持动态参数和鼠标操作!</p>
+    </div>
+    <div class="card" onclick="location.href='pages/binary_search.html'">
+        <div class="hologram-scan"></div>
+        <h3>二分查找算法<span style="color: #666666"></span></h3>
+        <img src="images/binary_search.png" alt="二分查找算法">
+        <p>二分查找（Binary Search）是一种高效的查找算法，适用于在有序数组中查找某一特定元素。其基本思想是通过将目标值与数组中间的元素进行比较，从而将查找范围缩小一半，以此类推，直到找到目标值或确定目标值不在数组中为止。</p>
+    </div>
+
+    <div class="card" onclick="location.href='pages/union_find.html'">
+        <div class="hologram-scan"></div>
+        <h3>并查集<span style="color: #666666"></span></h3>
+        <img src="images/union_find.png" alt="并查集">
+        <p>Union-Find 或 Disjoint Set Union, DSU）是一种用于处理不相交集合的数据结构，主要用于解决动态连通性问题。</p>
     </div>
 </section>
 
@@ -366,75 +571,267 @@
 </footer>
 
 <script>
-    // Three.js 背景动画
-    const bgCanvas = document.getElementById('bg-canvas');
+    // 日夜模式切换
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
 
-    // 初始化场景、相机和渲染器
+    themeToggle.addEventListener('click', () => {
+        body.classList.toggle('light-mode');
+
+        // 更新图标
+        const icon = themeToggle.querySelector('i');
+        if (body.classList.contains('light-mode')) {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+            scene.background = new THREE.Color(0xf0f2f5);
+            pointLight.color.setHex(0x0096ff);
+            ambientLight.color.setHex(0x888888);
+        } else {
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+            scene.background = new THREE.Color(0x0f1621);
+            pointLight.color.setHex(0x00d4ff);
+            ambientLight.color.setHex(0x0096ff);
+        }
+    });
+
+    // Three.js 创意背景效果 - 数据网络
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1621);
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({
-        canvas: bgCanvas,
+        canvas: document.getElementById('bg-canvas'),
         antialias: true,
         alpha: true
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // 创建粒子系统
-    const particlesGeometry = new THREE.BufferGeometry();
-    const particleCount = 1000;
+    // 添加后期处理效果
+    const bloomParams = {
+        exposure: 1,
+        bloomStrength: 1.5,
+        bloomThreshold: 0,
+        bloomRadius: 0.5
+    };
 
-    const posArray = new Float32Array(particleCount * 3);
-    const sizeArray = new Float32Array(particleCount);
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        bloomParams.bloomStrength,
+        bloomParams.bloomRadius,
+        bloomParams.bloomThreshold
+    );
 
-    for(let i = 0; i < particleCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 20;
-        if(i % 3 === 2) {
-            posArray[i] = Math.random() * 10 - 5;
+    const composer = new THREE.EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
+    camera.position.z = 30;
+
+    // 创建数据网络节点
+    const createDataNodes = () => {
+        const group = new THREE.Group();
+        const nodeCount = 30;
+        const nodes = [];
+
+        // 创建节点
+        for (let i = 0; i < nodeCount; i++) {
+            const geometry = new THREE.IcosahedronGeometry(0.5, 1);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x0096ff,
+                emissive: 0x003366,
+                emissiveIntensity: 0.5,
+                shininess: 100
+            });
+
+            const node = new THREE.Mesh(geometry, material);
+
+            // 在球面上随机分布节点
+            const radius = 15 + Math.random() * 10;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI;
+
+            node.position.x = radius * Math.sin(phi) * Math.cos(theta);
+            node.position.y = radius * Math.sin(phi) * Math.sin(theta);
+            node.position.z = radius * Math.cos(phi);
+
+            nodes.push(node);
+            group.add(node);
         }
-    }
 
-    for(let i = 0; i < particleCount; i++) {
-        sizeArray[i] = Math.random() * 0.5 + 0.1;
-    }
-
-    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizeArray, 1));
-
-    const particlesMaterial = new THREE.PointsMaterial({
-        size: 0.1,
-        color: 0x0096ff,
-        transparent: true,
-        opacity: 0.8,
-        sizeAttenuation: true,
-        blending: THREE.AdditiveBlending
-    });
-
-    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particlesMesh);
-
-    camera.position.z = 5;
-
-    // 动画循环
-    function animate() {
-        requestAnimationFrame(animate);
-
-        particlesMesh.rotation.x += 0.0005;
-        particlesMesh.rotation.y += 0.001;
-
-        // 更新粒子位置
-        const positions = particlesGeometry.attributes.position.array;
-        for(let i = 0; i < particleCount * 3; i += 3) {
-            positions[i + 1] -= 0.01;
-            if(positions[i + 1] < -10) {
-                positions[i + 1] = 10;
-                positions[i] = (Math.random() - 0.5) * 20;
-                positions[i + 2] = Math.random() * 10 - 5;
+        // 创建连接线
+        for (let i = 0; i < nodeCount; i++) {
+            for (let j = i + 1; j < nodeCount; j++) {
+                if (Math.random() > 0.7) {
+                    const distance = nodes[i].position.distanceTo(nodes[j].position);
+                    if (distance < 20) {
+                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                            nodes[i].position,
+                            nodes[j].position
+                        ]);
+                        const lineMaterial = new THREE.LineBasicMaterial({
+                            color: 0x0096ff,
+                            transparent: true,
+                            opacity: 0.3
+                        });
+                        const line = new THREE.Line(lineGeometry, lineMaterial);
+                        group.add(line);
+                    }
+                }
             }
         }
-        particlesGeometry.attributes.position.needsUpdate = true;
 
-        renderer.render(scene, camera);
-    }
+        // 添加动画
+        group.userData.nodes = nodes;
+        group.userData.animate = (time) => {
+            group.userData.nodes.forEach((node, i) => {
+                // 轻微浮动
+                node.position.x += Math.sin(time * 0.5 + i) * 0.01;
+                node.position.y += Math.cos(time * 0.6 + i) * 0.01;
+                node.position.z += Math.sin(time * 0.7 + i) * 0.01;
+
+                // 旋转
+                node.rotation.x = time * 0.1 + i;
+                node.rotation.y = time * 0.2 + i;
+            });
+        };
+
+        return group;
+    };
+
+    // 创建流动数据粒子
+    const createDataFlow = () => {
+        const particleCount = 500;
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 50;
+            positions[i + 1] = (Math.random() - 0.5) * 50;
+            positions[i + 2] = (Math.random() - 0.5) * 50;
+
+            colors[i] = 0.2 + Math.random() * 0.8;
+            colors[i + 1] = 0.5 + Math.random() * 0.5;
+            colors[i + 2] = 0.8 + Math.random() * 0.2;
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.3,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            sizeAttenuation: true
+        });
+
+        const particleSystem = new THREE.Points(particles, material);
+
+        // 添加动画
+        particleSystem.userData.animate = (time) => {
+            const positions = particles.attributes.position.array;
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                // 沿螺旋路径移动
+                positions[i] = Math.cos(time * 0.2 + i * 0.01) * 20;
+                positions[i + 1] = Math.sin(time * 0.2 + i * 0.01) * 20;
+                positions[i + 2] = (time * 0.5 + i * 0.01) % 40 - 20;
+            }
+
+            particles.attributes.position.needsUpdate = true;
+        };
+
+        return particleSystem;
+    };
+
+    // 创建算法可视化元素
+    const createAlgorithmElements = () => {
+        const group = new THREE.Group();
+
+        // 创建排序算法可视化条
+        const createSortingBars = () => {
+            const barGroup = new THREE.Group();
+            const barCount = 10;
+
+            for (let i = 0; i < barCount; i++) {
+                const height = 2 + Math.random() * 5;
+                const geometry = new THREE.BoxGeometry(0.8, height, 0.8);
+                const material = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(`hsl(${i * 36}, 80%, 60%)`),
+                    emissive: new THREE.Color(`hsl(${i * 36}, 80%, 20%)`),
+                    emissiveIntensity: 0.5
+                });
+
+                const bar = new THREE.Mesh(geometry, material);
+                bar.position.x = i * 1.2 - (barCount * 1.2) / 2;
+                bar.position.y = height / 2;
+                bar.position.z = -15;
+
+                barGroup.add(bar);
+                barGroup.userData.bars = barGroup.children;
+            }
+
+            // 添加排序动画
+            barGroup.userData.animate = (time) => {
+                barGroup.userData.bars.forEach((bar, i) => {
+                    // 模拟排序过程
+                    const targetHeight = 2 + Math.abs(Math.sin(time * 0.5 + i * 0.3)) * 5;
+                    bar.scale.y += (targetHeight - bar.scale.y) * 0.1;
+                    bar.position.y = bar.scale.y / 2;
+                });
+            };
+
+            return barGroup;
+        };
+
+        group.add(createSortingBars());
+        return group;
+    };
+
+    // 添加光源
+    const ambientLight = new THREE.AmbientLight(0x0096ff, 0.2);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0x00d4ff, 0.8, 50);
+    pointLight.position.set(10, 10, 10);
+    scene.add(pointLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // 创建场景元素
+    const dataNetwork = createDataNodes();
+    scene.add(dataNetwork);
+
+    const dataFlow = createDataFlow();
+    scene.add(dataFlow);
+
+    const algorithmElements = createAlgorithmElements();
+    algorithmElements.position.set(0, -5, -20);
+    scene.add(algorithmElements);
+
+    // 动画循环
+    const animate = () => {
+        requestAnimationFrame(animate);
+
+        const time = performance.now() * 0.001;
+
+        // 更新场景元素
+        dataNetwork.userData.animate(time);
+        dataFlow.userData.animate(time);
+        algorithmElements.userData.animate(time);
+
+        // 缓慢旋转场景
+        scene.rotation.y = time * 0.05;
+
+        // 渲染场景
+        composer.render();
+    };
 
     animate();
 
@@ -443,35 +840,10 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // 创建科技风装饰圆环
-    function createTechCircles() {
-        const colors = ['rgba(0, 150, 255, 0.2)', 'rgba(0, 210, 255, 0.15)', 'rgba(0, 255, 200, 0.1)'];
-
-        for(let i = 0; i < 5; i++) {
-            const circle = document.createElement('div');
-            circle.className = 'tech-circle';
-
-            const size = Math.random() * 300 + 100;
-            const posX = Math.random() * 100;
-            const posY = Math.random() * 100;
-            const color = colors[Math.floor(Math.random() * colors.length)];
-
-            circle.style.width = `${size}px`;
-            circle.style.height = `${size}px`;
-            circle.style.left = `${posX}%`;
-            circle.style.top = `${posY}%`;
-            circle.style.borderColor = color;
-            circle.style.animation = `float ${Math.random() * 10 + 10}s infinite ease-in-out, pulse ${Math.random() * 5 + 5}s infinite`;
-
-            document.body.appendChild(circle);
-        }
-    }
-
-    createTechCircles();
-
-    // 卡片悬停效果增强
+    // 卡片悬停效果
     const cards = document.querySelectorAll('.card');
     cards.forEach(card => {
         card.addEventListener('mousemove', (e) => {
@@ -486,32 +858,18 @@
 
             card.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) translateY(-10px)`;
 
-            // 光效跟随
-            const glow = document.createElement('div');
-            glow.style.position = 'absolute';
-            glow.style.width = '100px';
-            glow.style.height = '100px';
-            glow.style.background = 'radial-gradient(circle, rgba(0, 150, 255, 0.5) 0%, transparent 70%)';
-            glow.style.borderRadius = '50%';
-            glow.style.top = `${y - 50}px`;
-            glow.style.left = `${x - 50}px`;
-            glow.style.pointerEvents = 'none';
-            glow.style.zIndex = '1';
-            glow.style.filter = 'blur(5px)';
-
-            card.appendChild(glow);
-
-            setTimeout(() => {
-                glow.style.opacity = '0';
-                glow.style.transform = 'scale(1.5)';
-                setTimeout(() => {
-                    card.removeChild(glow);
-                }, 300);
-            }, 50);
+            // 更新全息扫描效果
+            const hologram = card.querySelector('.hologram-scan');
+            hologram.style.background = `linear-gradient(
+                ${(x / card.offsetWidth) * 360}deg,
+                transparent,
+                rgba(0, ${150 + Math.random() * 105}, 255, 0.2),
+                transparent
+            )`;
         });
 
         card.addEventListener('mouseleave', () => {
-            card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateY(-10px)';
+            card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateY(0)';
         });
     });
 </script>

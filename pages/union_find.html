@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>并查集(Disjoint Set Union)算法3D可视化</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background-color: #3367d6;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        select, input {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            flex-grow: 1;
+            font-size: 14px;
+        }
+
+        #info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        #info-panel h2 {
+            margin-top: 0;
+            color: #4285f4;
+            font-size: 18px;
+        }
+
+        #algorithm-steps {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .step {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .step.current {
+            background-color: #e8f0fe;
+            font-weight: bold;
+        }
+
+        #set-size-slider {
+            width: 100%;
+        }
+
+        #speed-control {
+            width: 100%;
+        }
+
+        #operation-select {
+            width: 100%;
+        }
+
+        #union-inputs {
+            display: flex;
+            gap: 10px;
+        }
+
+        #find-input {
+            width: 100%;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #555;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-button.active {
+            color: #4285f4;
+            border-bottom-color: #4285f4;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            #controls {
+                width: 95%;
+                padding: 10px;
+            }
+
+            #info-panel {
+                max-width: 250px;
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            .control-row {
+                flex-direction: column;
+            }
+
+            #union-inputs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+
+<div id="info-panel">
+    <h2>并查集(Disjoint Set Union)算法</h2>
+    <div id="algorithm-steps"></div>
+</div>
+
+<div id="controls">
+    <div class="tab-buttons">
+        <button class="tab-button active" data-tab="union-tab">合并(Union)</button>
+        <button class="tab-button" data-tab="find-tab">查找(Find)</button>
+    </div>
+
+    <div id="union-tab" class="tab-content active">
+        <div class="control-group">
+            <label for="set-a">集合A:</label>
+            <select id="set-a"></select>
+        </div>
+        <div class="control-group">
+            <label for="set-b">集合B:</label>
+            <select id="set-b"></select>
+        </div>
+        <button id="union-btn">执行合并</button>
+    </div>
+
+    <div id="find-tab" class="tab-content">
+        <div class="control-group">
+            <label for="find-element">查找元素:</label>
+            <select id="find-element"></select>
+        </div>
+        <button id="find-btn">执行查找</button>
+    </div>
+
+    <div class="control-group">
+        <label for="set-size-slider">集合大小:</label>
+        <input type="range" id="set-size-slider" min="5" max="20" value="10">
+        <span id="set-size-value">10</span>
+    </div>
+
+    <div class="control-group">
+        <label for="speed-control">速度:</label>
+        <input type="range" id="speed-control" min="1" max="10" value="5">
+    </div>
+
+    <div class="control-row">
+        <button id="random-union-btn">随机合并</button>
+        <button id="reset-btn">重置</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    // 初始化Three.js场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f5);
+
+    // 设置相机
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 10, 20);
+    camera.lookAt(0, 0, 0);
+
+    // 初始化渲染器
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 添加轨道控制器
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 添加灯光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 7);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // 添加地面
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0xdddddd,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // 并查集实现
+    class DisjointSet {
+        constructor(size) {
+            this.parent = Array.from({length: size}, (_, i) => i);
+            this.rank = new Array(size).fill(0);
+            this.size = size;
+        }
+
+        find(x) {
+            if (this.parent[x] !== x) {
+                this.parent[x] = this.find(this.parent[x]); // 路径压缩
+            }
+            return this.parent[x];
+        }
+
+        union(x, y) {
+            const xRoot = this.find(x);
+            const yRoot = this.find(y);
+
+            if (xRoot === yRoot) return false; // 已经在同一集合
+
+            // 按秩合并
+            if (this.rank[xRoot] < this.rank[yRoot]) {
+                this.parent[xRoot] = yRoot;
+            } else if (this.rank[xRoot] > this.rank[yRoot]) {
+                this.parent[yRoot] = xRoot;
+            } else {
+                this.parent[yRoot] = xRoot;
+                this.rank[xRoot]++;
+            }
+
+            return true;
+        }
+
+        getSets() {
+            const sets = {};
+            for (let i = 0; i < this.size; i++) {
+                const root = this.find(i);
+                if (!sets[root]) {
+                    sets[root] = [];
+                }
+                sets[root].push(i);
+            }
+            return Object.values(sets);
+        }
+    }
+
+    // 可视化参数
+    let disjointSet;
+    let setElements = [];
+    let connections = [];
+    let animationSpeed = 5;
+    let isAnimating = false;
+    let algorithmSteps = [];
+    let currentStep = 0;
+
+    // 颜色定义
+    const colors = [
+        0x4285f4, 0xea4335, 0xfbbc05, 0x34a853, 0x673ab7,
+        0xff5722, 0x009688, 0x795548, 0x9c27b0, 0x3f51b5
+    ];
+
+    // 初始化并查集
+    function initializeDisjointSet(size) {
+        disjointSet = new DisjointSet(size);
+
+        // 创建3D元素
+        createSetElements();
+
+        // 更新选择器
+        updateSelectors();
+
+        // 重置算法状态
+        resetAlgorithm();
+    }
+
+    // 创建集合元素
+    function createSetElements() {
+        // 移除旧元素
+        setElements.forEach(element => {
+            scene.remove(element.sphere);
+            scene.remove(element.text);
+        });
+        setElements = [];
+
+        connections.forEach(conn => scene.remove(conn));
+        connections = [];
+
+        const radius = 0.5;
+        const spacing = 3;
+        const rows = Math.ceil(Math.sqrt(disjointSet.size));
+
+        for (let i = 0; i < disjointSet.size; i++) {
+            const row = Math.floor(i / rows);
+            const col = i % rows;
+            const x = (col - (rows - 1) / 2) * spacing;
+            const z = (row - (rows - 1) / 2) * spacing;
+
+            // 创建球体
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                color: colors[i % colors.length],
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(x, radius, z);
+            sphere.castShadow = true;
+            sphere.receiveShadow = true;
+            sphere.userData = { index: i };
+            scene.add(sphere);
+
+            // 创建文本标签
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            context.fillStyle = 'rgba(0, 0, 0, 0)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.font = 'Bold 40px Arial';
+            context.textAlign = 'center';
+            context.fillStyle = '#ffffff';
+            context.fillText(i, canvas.width/2, canvas.height/2 + 15);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const textMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true
+            });
+            const textGeometry = new THREE.PlaneGeometry(0.8, 0.4);
+            const text = new THREE.Mesh(textGeometry, textMaterial);
+            text.position.set(x, radius, z + radius + 0.2);
+            scene.add(text);
+
+            setElements.push({ sphere, text, index: i });
+        }
+
+        updateVisualization();
+    }
+
+    // 更新可视化连接
+    function updateVisualization() {
+        // 移除旧连接
+        connections.forEach(conn => scene.remove(conn));
+        connections = [];
+
+        // 创建新连接
+        for (let i = 0; i < disjointSet.size; i++) {
+            if (disjointSet.parent[i] !== i) { // 不是根节点
+                const parent = disjointSet.parent[i];
+                const start = setElements[i].sphere.position;
+                const end = setElements[parent].sphere.position;
+
+                // 创建连接线
+                const curve = new THREE.LineCurve3(
+                    new THREE.Vector3(start.x, start.y, start.z),
+                    new THREE.Vector3(end.x, end.y, end.z)
+                );
+
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(
+                    curve.getPoints(20)
+                );
+
+                const lineMaterial = new THREE.LineBasicMaterial({
+                    color: 0x888888,
+                    linewidth: 2
+                });
+
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+                connections.push(line);
+            }
+        }
+
+        // 更新颜色
+        const sets = disjointSet.getSets();
+        sets.forEach((set, setIndex) => {
+            const color = colors[setIndex % colors.length];
+            set.forEach(elementIndex => {
+                setElements[elementIndex].sphere.material.color.setHex(color);
+            });
+        });
+    }
+
+    // 更新选择器
+    function updateSelectors() {
+        const setA = document.getElementById('set-a');
+        const setB = document.getElementById('set-b');
+        const findElement = document.getElementById('find-element');
+
+        setA.innerHTML = '';
+        setB.innerHTML = '';
+        findElement.innerHTML = '';
+
+        const sets = disjointSet.getSets();
+        sets.forEach((set, index) => {
+            const optionA = document.createElement('option');
+            const optionB = document.createElement('option');
+            optionA.value = set[0]; // 使用集合中第一个元素代表集合
+            optionB.value = set[0];
+            optionA.textContent = `集合 ${index + 1} (${set.join(', ')})`;
+            optionB.textContent = `集合 ${index + 1} (${set.join(', ')})`;
+            setA.appendChild(optionA);
+            setB.appendChild(optionB);
+
+            // 为查找操作添加所有元素
+            set.forEach(element => {
+                const option = document.createElement('option');
+                option.value = element;
+                option.textContent = element;
+                findElement.appendChild(option);
+            });
+        });
+
+        // 确保不选择相同的集合
+        if (setA.options.length > 0 && setB.options.length > 0) {
+            if (setA.selectedIndex === setB.selectedIndex) {
+                setB.selectedIndex = (setA.selectedIndex + 1) % setB.options.length;
+            }
+        }
+    }
+
+    // 重置算法状态
+    function resetAlgorithm() {
+        algorithmSteps = [];
+        currentStep = 0;
+        document.getElementById('algorithm-steps').innerHTML = '';
+        isAnimating = false;
+    }
+
+    // 添加算法步骤
+    function addAlgorithmStep(message) {
+        algorithmSteps.push(message);
+
+        const stepElement = document.createElement('div');
+        stepElement.className = 'step';
+        if (algorithmSteps.length - 1 === currentStep) {
+            stepElement.classList.add('current');
+        }
+        stepElement.textContent = message;
+        document.getElementById('algorithm-steps').appendChild(stepElement);
+
+        // 自动滚动到底部
+        document.getElementById('algorithm-steps').scrollTop =
+            document.getElementById('algorithm-steps').scrollHeight;
+    }
+
+    // 执行查找操作
+    async function performFind(element) {
+        isAnimating = true;
+
+        addAlgorithmStep(`开始查找元素 ${element} 的根节点`);
+
+        // 高亮当前元素
+        await animateElement(setElements[element].sphere, 0xffffff);
+
+        let current = element;
+        let path = [];
+
+        while (true) {
+            path.push(current);
+            const parent = disjointSet.parent[current];
+
+            if (parent === current) { // 找到根节点
+                addAlgorithmStep(`找到根节点: ${current}`);
+
+                // 高亮根节点
+                await animateFoundElement(setElements[current].sphere);
+
+                // 路径压缩动画
+                if (path.length > 1) {
+                    addAlgorithmStep(`执行路径压缩...`);
+                    for (let i = 0; i < path.length - 1; i++) {
+                        const node = path[i];
+                        disjointSet.parent[node] = current;
+
+                        // 更新连接线
+                        updateVisualization();
+
+                        // 高亮被压缩的节点
+                        await animateElement(setElements[node].sphere, 0x888888);
+
+                        addAlgorithmStep(`节点 ${node} 现在直接指向根节点 ${current}`);
+                    }
+                }
+
+                break;
+            }
+
+            addAlgorithmStep(`节点 ${current} 的父节点是 ${parent}, 继续查找`);
+
+            // 高亮路径
+            await animateConnection(current, parent);
+            current = parent;
+        }
+
+        isAnimating = false;
+    }
+
+    // 执行合并操作
+    async function performUnion(a, b) {
+        isAnimating = true;
+
+        addAlgorithmStep(`开始合并元素 ${a} 和 ${b} 所在的集合`);
+
+        const aRoot = disjointSet.find(a);
+        const bRoot = disjointSet.find(b);
+
+        addAlgorithmStep(`元素 ${a} 的根节点是 ${aRoot}`);
+        addAlgorithmStep(`元素 ${b} 的根节点是 ${bRoot}`);
+
+        if (aRoot === bRoot) {
+            addAlgorithmStep(`两个元素已经在同一集合中，无需合并`);
+            isAnimating = false;
+            return false;
+        }
+
+        // 高亮两个根节点
+        await Promise.all([
+            animateElement(setElements[aRoot].sphere, 0xffffff),
+            animateElement(setElements[bRoot].sphere, 0xffffff)
+        ]);
+
+        // 按秩合并
+        if (disjointSet.rank[aRoot] < disjointSet.rank[bRoot]) {
+            disjointSet.parent[aRoot] = bRoot;
+            addAlgorithmStep(`集合 ${aRoot} 的秩较小，将其合并到集合 ${bRoot}`);
+        } else if (disjointSet.rank[aRoot] > disjointSet.rank[bRoot]) {
+            disjointSet.parent[bRoot] = aRoot;
+            addAlgorithmStep(`集合 ${bRoot} 的秩较小，将其合并到集合 ${aRoot}`);
+        } else {
+            disjointSet.parent[bRoot] = aRoot;
+            disjointSet.rank[aRoot]++;
+            addAlgorithmStep(`两个集合秩相同，将 ${bRoot} 合并到 ${aRoot} 并增加 ${aRoot} 的秩`);
+        }
+
+        // 更新可视化
+        updateVisualization();
+
+        // 高亮新连接
+        await animateConnection(bRoot, aRoot);
+
+        addAlgorithmStep(`合并完成，新的集合结构已更新`);
+
+        isAnimating = false;
+        return true;
+    }
+
+    // 执行随机合并
+    async function performRandomUnion() {
+        if (isAnimating) return;
+
+        const sets = disjointSet.getSets();
+        if (sets.length <= 1) {
+            addAlgorithmStep(`所有元素已在同一集合中，无法继续合并`);
+            return;
+        }
+
+        // 随机选择两个不同集合
+        let setAIndex, setBIndex;
+        do {
+            setAIndex = Math.floor(Math.random() * sets.length);
+            setBIndex = Math.floor(Math.random() * sets.length);
+        } while (setAIndex === setBIndex);
+
+        const setA = sets[setAIndex][0]; // 使用集合第一个元素代表集合
+        const setB = sets[setBIndex][0];
+
+        document.getElementById('set-a').value = setA;
+        document.getElementById('set-b').value = setB;
+
+        await performUnion(setA, setB);
+        updateSelectors();
+    }
+
+    // 动画效果：元素高亮
+    function animateElement(element, color) {
+        return new Promise(resolve => {
+            const originalColor = element.material.color.getHex();
+            const duration = 1000 / animationSpeed;
+            const startTime = Date.now();
+
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                if (progress < 0.5) {
+                    // 前半段：变为高亮色
+                    element.material.color.setHex(
+                        interpolateColor(originalColor, color, progress * 2)
+                    );
+                } else {
+                    // 后半段：恢复原色
+                    element.material.color.setHex(
+                        interpolateColor(color, originalColor, (progress - 0.5) * 2)
+                    );
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    resolve();
+                }
+            }
+
+            update();
+        });
+    }
+
+    // 动画效果：连接高亮
+    function animateConnection(from, to) {
+        return new Promise(resolve => {
+            const start = setElements[from].sphere.position;
+            const end = setElements[to].sphere.position;
+
+            // 创建临时高亮连接线
+            const curve = new THREE.LineCurve3(
+                new THREE.Vector3(start.x, start.y, start.z),
+                new THREE.Vector3(end.x, end.y, end.z)
+            );
+
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(
+                curve.getPoints(20)
+            );
+
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: 0xff0000,
+                linewidth: 3
+            });
+
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+
+            // 动画持续时间
+            const duration = 1000 / animationSpeed;
+            const startTime = Date.now();
+
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // 可以添加动画效果，如脉冲或生长动画
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    scene.remove(line);
+                    resolve();
+                }
+            }
+
+            update();
+        });
+    }
+
+    // 动画效果：找到元素
+    function animateFoundElement(element) {
+        return new Promise(resolve => {
+            const duration = 2000 / animationSpeed;
+            const startTime = Date.now();
+            const originalY = element.position.y;
+
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // 上下跳动动画
+                element.position.y = originalY + Math.sin(progress * Math.PI * 4) * 0.3;
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    element.position.y = originalY;
+                    resolve();
+                }
+            }
+
+            update();
+        });
+    }
+
+    // 颜色插值
+    function interpolateColor(color1, color2, ratio) {
+        const r1 = (color1 >> 16) & 0xff;
+        const g1 = (color1 >> 8) & 0xff;
+        const b1 = color1 & 0xff;
+
+        const r2 = (color2 >> 16) & 0xff;
+        const g2 = (color2 >> 8) & 0xff;
+        const b2 = color2 & 0xff;
+
+        const r = Math.round(r1 + (r2 - r1) * ratio);
+        const g = Math.round(g1 + (g2 - g1) * ratio);
+        const b = Math.round(b1 + (b2 - b1) * ratio);
+
+        return (r << 16) | (g << 8) | b;
+    }
+
+    // 切换标签页
+    function setupTabSwitching() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // 切换活动标签
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                button.classList.add('active');
+                const tabId = button.dataset.tab;
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    }
+
+    // 事件监听器
+    document.getElementById('set-size-slider').addEventListener('input', function() {
+        const size = parseInt(this.value);
+        document.getElementById('set-size-value').textContent = size;
+        initializeDisjointSet(size);
+    });
+
+    document.getElementById('speed-control').addEventListener('input', function() {
+        animationSpeed = parseInt(this.value);
+    });
+
+    document.getElementById('union-btn').addEventListener('click', async function() {
+        if (isAnimating) return;
+
+        const a = parseInt(document.getElementById('set-a').value);
+        const b = parseInt(document.getElementById('set-b').value);
+
+        if (isNaN(a) || isNaN(b)) return;
+
+        const success = await performUnion(a, b);
+        if (success) {
+            updateSelectors();
+        }
+    });
+
+    document.getElementById('find-btn').addEventListener('click', async function() {
+        if (isAnimating) return;
+
+        const element = parseInt(document.getElementById('find-element').value);
+        if (isNaN(element)) return;
+
+        await performFind(element);
+    });
+
+    document.getElementById('random-union-btn').addEventListener('click', async function() {
+        await performRandomUnion();
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        if (isAnimating) return;
+
+        const size = parseInt(document.getElementById('set-size-slider').value);
+        initializeDisjointSet(size);
+    });
+
+    // 窗口大小调整
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化
+    setupTabSwitching();
+    initializeDisjointSet(10);
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+</script>
+</body>
+</html>

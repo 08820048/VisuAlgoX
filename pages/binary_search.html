@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二分查找算法3D可视化</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background-color: #3367d6;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        select, input, textarea {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            flex-grow: 1;
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 40px;
+            resize: vertical;
+        }
+
+        #info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        #info-panel h2 {
+            margin-top: 0;
+            color: #4285f4;
+            font-size: 18px;
+        }
+
+        #algorithm-steps {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .step {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .step.current {
+            background-color: #e8f0fe;
+            font-weight: bold;
+        }
+
+        #target-value-display {
+            font-weight: bold;
+            color: #4285f4;
+        }
+
+        #array-size-slider {
+            width: 100%;
+        }
+
+        #speed-control {
+            width: 100%;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #555;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-button.active {
+            color: #4285f4;
+            border-bottom-color: #4285f4;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #custom-array-error {
+            color: #ea4335;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        #preset-select {
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            #controls {
+                width: 95%;
+                padding: 10px;
+            }
+
+            #info-panel {
+                max-width: 250px;
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            .control-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+
+<div id="info-panel">
+    <h2>二分查找算法</h2>
+    <p>查找目标值: <span id="target-value-display">-</span></p>
+    <div id="algorithm-steps"></div>
+</div>
+
+<div id="controls">
+    <div class="tab-buttons">
+        <button class="tab-button active" data-tab="preset-tab">预设数组</button>
+        <button class="tab-button" data-tab="custom-tab">自定义数组</button>
+    </div>
+
+    <div id="preset-tab" class="tab-content active">
+        <div class="control-group">
+            <label for="preset-select">预设数组:</label>
+            <select id="preset-select">
+                <option value="1-15">1-15 (15个元素)</option>
+                <option value="10-25">10-25 (16个元素)</option>
+                <option value="even">偶数 (2,4,6,...,30)</option>
+                <option value="odd">奇数 (1,3,5,...,29)</option>
+                <option value="powers">2的幂 (1,2,4,8,16,32)</option>
+                <option value="primes">质数 (2,3,5,7,11,13,17,19,23,29)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="array-size-slider">数组大小:</label>
+            <input type="range" id="array-size-slider" min="5" max="30" value="15">
+            <span id="array-size-value">15</span>
+        </div>
+    </div>
+
+    <div id="custom-tab" class="tab-content">
+        <div class="control-group">
+            <label for="custom-array-input">自定义数组 (逗号分隔):</label>
+            <textarea id="custom-array-input" placeholder="例如: 3,7,12,15,21,24,29,33,37"></textarea>
+        </div>
+        <div id="custom-array-error"></div>
+    </div>
+
+    <div class="control-group">
+        <label for="target-value">目标值:</label>
+        <select id="target-value"></select>
+    </div>
+
+    <div class="control-group">
+        <label for="speed-control">速度:</label>
+        <input type="range" id="speed-control" min="1" max="10" value="5">
+    </div>
+
+    <div class="control-row">
+        <div style="display: flex; gap: 10px;">
+            <button id="start-btn">开始搜索</button>
+            <button id="next-step-btn" disabled>下一步</button>
+        </div>
+        <button id="reset-btn">重置</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    // 初始化Three.js场景
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f5);
+
+    // 设置相机
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 10, 20);
+    camera.lookAt(0, 0, 0);
+
+    // 初始化渲染器
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    // 添加轨道控制器
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 添加灯光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 7);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // 添加地面
+    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0xdddddd,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // 数组元素和可视化参数
+    let array = [];
+    let arrayElements = [];
+    let targetValue = null;
+    let animationSpeed = 5;
+    let isAnimating = false;
+    let currentStep = 0;
+    let algorithmSteps = [];
+
+    // 颜色定义
+    const colors = {
+        default: 0x4285f4,
+        checked: 0x34a853,
+        current: 0xea4335,
+        target: 0xfbbc05,
+        range: 0xe8f0fe
+    };
+
+    // 预设数组
+    const presets = {
+        '1-15': Array.from({length: 15}, (_, i) => i + 1),
+        '10-25': Array.from({length: 16}, (_, i) => i + 10),
+        'even': Array.from({length: 15}, (_, i) => (i + 1) * 2),
+        'odd': Array.from({length: 15}, (_, i) => i * 2 + 1),
+        'powers': [1, 2, 4, 8, 16, 32],
+        'primes': [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+    };
+
+    // 初始化数组
+    function initializeArray(arr) {
+        array = [...arr].sort((a, b) => a - b); // 确保数组有序
+
+        // 更新目标值选择器
+        const targetSelect = document.getElementById('target-value');
+        targetSelect.innerHTML = '';
+
+        // 添加数组中的唯一值
+        const uniqueValues = [...new Set(array)];
+        uniqueValues.forEach(value => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            targetSelect.appendChild(option);
+        });
+
+        // 默认选择中间值
+        const midIndex = Math.floor(array.length / 2);
+        if (array.length > 0) {
+            targetSelect.value = array[midIndex];
+            targetValue = parseInt(targetSelect.value);
+            document.getElementById('target-value-display').textContent = targetValue;
+        }
+
+        // 创建3D数组元素
+        createArrayElements();
+    }
+
+    // 从预设初始化数组
+    function initializePresetArray(presetKey) {
+        const size = parseInt(document.getElementById('array-size-slider').value);
+        let presetArray = presets[presetKey];
+
+        // 调整预设数组大小
+        if (presetKey === '1-15' || presetKey === 'even' || presetKey === 'odd') {
+            presetArray = presetArray.slice(0, size);
+        }
+
+        initializeArray(presetArray);
+    }
+
+    // 从自定义输入初始化数组
+    function initializeCustomArray() {
+        const input = document.getElementById('custom-array-input').value.trim();
+        const errorElement = document.getElementById('custom-array-error');
+
+        if (!input) {
+            errorElement.textContent = "请输入数组元素";
+            errorElement.style.display = 'block';
+            return false;
+        }
+
+        try {
+            const customArray = input.split(',')
+                .map(item => item.trim())
+                .filter(item => item !== '')
+                .map(item => {
+                    const num = Number(item);
+                    if (isNaN(num)) throw new Error(`"${item}" 不是有效数字`);
+                    return num;
+                });
+
+            if (customArray.length < 2) {
+                throw new Error("数组至少需要2个元素");
+            }
+
+            // 检查数组是否有序
+            const sorted = [...customArray].sort((a, b) => a - b);
+            const isSorted = JSON.stringify(customArray) === JSON.stringify(sorted);
+            if (!isSorted) {
+                throw new Error("数组必须是升序排列");
+            }
+
+            errorElement.style.display = 'none';
+            initializeArray(customArray);
+            return true;
+        } catch (error) {
+            errorElement.textContent = error.message;
+            errorElement.style.display = 'block';
+            return false;
+        }
+    }
+
+    // 创建3D数组元素
+    function createArrayElements() {
+        // 移除旧的元素
+        arrayElements.forEach(element => {
+            scene.remove(element.cube);
+            scene.remove(element.text);
+        });
+        arrayElements = [];
+
+        const spacing = Math.min(1.5, 20 / array.length); // 根据数组大小调整间距
+        const startX = -((array.length - 1) * spacing) / 2;
+
+        for (let i = 0; i < array.length; i++) {
+            const value = array[i];
+
+            // 创建立方体
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({
+                color: colors.default,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(startX + i * spacing, 0.5, 0);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            cube.userData = { index: i, value: value };
+            scene.add(cube);
+
+            // 创建文本标签
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            context.fillStyle = 'rgba(0, 0, 0, 0)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.font = 'Bold 40px Arial';
+            context.textAlign = 'center';
+            context.fillStyle = '#ffffff';
+            context.fillText(value, canvas.width/2, canvas.height/2 + 15);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const textMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true
+            });
+            const textGeometry = new THREE.PlaneGeometry(0.8, 0.4);
+            const text = new THREE.Mesh(textGeometry, textMaterial);
+            text.position.set(startX + i * spacing, 0.5, 0.51);
+            scene.add(text);
+
+            arrayElements.push({ cube, text, value });
+        }
+
+        // 重置算法状态
+        resetAlgorithm();
+    }
+
+    // 重置算法状态
+    function resetAlgorithm() {
+        // 重置所有元素的颜色
+        arrayElements.forEach(element => {
+            element.cube.material.color.setHex(colors.default);
+        });
+
+        // 清除步骤信息
+        algorithmSteps = [];
+        currentStep = 0;
+        document.getElementById('algorithm-steps').innerHTML = '';
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('next-step-btn').disabled = false;
+        isAnimating = false;
+    }
+
+    // 生成二分查找步骤
+    function generateBinarySearchSteps() {
+        algorithmSteps = [];
+        let left = 0;
+        let right = array.length - 1;
+        let stepCount = 1;
+
+        algorithmSteps.push({
+            type: 'init',
+            message: `初始化: left = ${left}, right = ${right}`,
+            left: left,
+            right: right
+        });
+
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const midValue = array[mid];
+
+            algorithmSteps.push({
+                type: 'compare',
+                message: `步骤 ${stepCount}: 比较中间位置 ${mid} 的值 ${midValue} 和目标值 ${targetValue}`,
+                left: left,
+                right: right,
+                mid: mid,
+                midValue: midValue
+            });
+
+            if (midValue === targetValue) {
+                algorithmSteps.push({
+                    type: 'found',
+                    message: `步骤 ${stepCount}: 找到目标值 ${targetValue} 在位置 ${mid}`,
+                    foundIndex: mid
+                });
+                break;
+            } else if (midValue < targetValue) {
+                algorithmSteps.push({
+                    type: 'move-right',
+                    message: `步骤 ${stepCount}: ${midValue} < ${targetValue}, 向右搜索 (left = ${mid + 1})`,
+                    left: mid + 1,
+                    right: right
+                });
+                left = mid + 1;
+            } else {
+                algorithmSteps.push({
+                    type: 'move-left',
+                    message: `步骤 ${stepCount}: ${midValue} > ${targetValue}, 向左搜索 (right = ${mid - 1})`,
+                    left: left,
+                    right: mid - 1
+                });
+                right = mid - 1;
+            }
+
+            stepCount++;
+        }
+
+        if (left > right) {
+            algorithmSteps.push({
+                type: 'not-found',
+                message: `步骤 ${stepCount}: 未找到目标值 ${targetValue}`
+            });
+        }
+
+        // 显示步骤列表
+        displayAlgorithmSteps();
+    }
+
+    // 显示算法步骤
+    function displayAlgorithmSteps() {
+        const stepsContainer = document.getElementById('algorithm-steps');
+        stepsContainer.innerHTML = '';
+
+        algorithmSteps.forEach((step, index) => {
+            const stepElement = document.createElement('div');
+            stepElement.className = 'step';
+            stepElement.textContent = step.message;
+            stepElement.dataset.index = index;
+            stepsContainer.appendChild(stepElement);
+        });
+    }
+
+    // 执行当前步骤的动画
+    async function executeCurrentStep() {
+        if (currentStep >= algorithmSteps.length) return;
+
+        isAnimating = true;
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('next-step-btn').disabled = true;
+
+        const step = algorithmSteps[currentStep];
+        const stepElements = document.querySelectorAll('.step');
+
+        // 高亮当前步骤文本
+        stepElements.forEach((el, idx) => {
+            el.classList.toggle('current', idx === currentStep);
+        });
+
+        // 根据步骤类型执行不同动画
+        switch (step.type) {
+            case 'init':
+                // 重置所有颜色
+                arrayElements.forEach(element => {
+                    element.cube.material.color.setHex(colors.default);
+                });
+                // 高亮初始范围
+                highlightRange(step.left, step.right);
+                break;
+
+            case 'compare':
+                // 高亮当前范围
+                highlightRange(step.left, step.right);
+                // 高亮中间元素
+                await animateElement(arrayElements[step.mid].cube, colors.current);
+                break;
+
+            case 'found':
+                // 高亮找到的元素
+                await animateFoundElement(arrayElements[step.foundIndex].cube);
+                break;
+
+            case 'move-left':
+            case 'move-right':
+                // 高亮新的搜索范围
+                highlightRange(step.left, step.right);
+                break;
+
+            case 'not-found':
+                // 显示未找到的提示
+                break;
+        }
+
+        currentStep++;
+        isAnimating = false;
+
+        // 如果未完成，启用下一步按钮
+        if (currentStep < algorithmSteps.length) {
+            document.getElementById('next-step-btn').disabled = false;
+        }
+    }
+
+    // 高亮指定范围内的元素
+    function highlightRange(left, right) {
+        arrayElements.forEach((element, index) => {
+            if (index >= left && index <= right) {
+                element.cube.material.color.setHex(colors.range);
+            } else {
+                element.cube.material.color.setHex(colors.default);
+            }
+        });
+    }
+
+    // 动画效果：元素比较
+    function animateElement(element, color) {
+        return new Promise(resolve => {
+            const originalColor = element.material.color.getHex();
+            const duration = 1000 / animationSpeed;
+            const startTime = Date.now();
+
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                if (progress < 0.5) {
+                    // 前半段：变为高亮色
+                    element.material.color.setHex(
+                        interpolateColor(originalColor, color, progress * 2)
+                    );
+                } else {
+                    // 后半段：恢复原色
+                    element.material.color.setHex(
+                        interpolateColor(color, originalColor, (progress - 0.5) * 2)
+                    );
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    resolve();
+                }
+            }
+
+            update();
+        });
+    }
+
+    // 动画效果：找到目标元素
+    function animateFoundElement(element) {
+        return new Promise(resolve => {
+            const duration = 2000 / animationSpeed;
+            const startTime = Date.now();
+
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // 闪烁金色
+                if (progress < 0.25) {
+                    element.material.color.setHex(colors.target);
+                    element.position.y = 0.5 + Math.sin(progress * Math.PI * 8) * 0.2;
+                }
+                // 保持金色
+                else if (progress < 0.75) {
+                    element.material.color.setHex(colors.target);
+                    element.position.y = 0.5;
+                }
+                // 变为绿色
+                else {
+                    element.material.color.setHex(colors.checked);
+                    element.position.y = 0.5;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    resolve();
+                }
+            }
+
+            update();
+        });
+    }
+
+    // 颜色插值
+    function interpolateColor(color1, color2, ratio) {
+        const r1 = (color1 >> 16) & 0xff;
+        const g1 = (color1 >> 8) & 0xff;
+        const b1 = color1 & 0xff;
+
+        const r2 = (color2 >> 16) & 0xff;
+        const g2 = (color2 >> 8) & 0xff;
+        const b2 = color2 & 0xff;
+
+        const r = Math.round(r1 + (r2 - r1) * ratio);
+        const g = Math.round(g1 + (g2 - g1) * ratio);
+        const b = Math.round(b1 + (b2 - b1) * ratio);
+
+        return (r << 16) | (g << 8) | b;
+    }
+
+    // 执行所有步骤
+    async function executeAllSteps() {
+        while (currentStep < algorithmSteps.length) {
+            await executeCurrentStep();
+            await new Promise(resolve => setTimeout(resolve, 500 / animationSpeed));
+        }
+    }
+
+    // 切换标签页
+    function setupTabSwitching() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // 切换活动标签
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                button.classList.add('active');
+                const tabId = button.dataset.tab;
+                document.getElementById(tabId).classList.add('active');
+
+                // 如果是自定义数组标签，重置错误信息
+                if (tabId === 'custom-tab') {
+                    document.getElementById('custom-array-error').style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // 事件监听器
+    document.getElementById('array-size-slider').addEventListener('input', function() {
+        const size = parseInt(this.value);
+        document.getElementById('array-size-value').textContent = size;
+        if (document.getElementById('preset-tab').classList.contains('active')) {
+            const presetKey = document.getElementById('preset-select').value;
+            initializePresetArray(presetKey);
+        }
+    });
+
+    document.getElementById('preset-select').addEventListener('change', function() {
+        if (document.getElementById('preset-tab').classList.contains('active')) {
+            initializePresetArray(this.value);
+        }
+    });
+
+    document.getElementById('custom-array-input').addEventListener('input', function() {
+        if (this.value.trim() && document.getElementById('custom-tab').classList.contains('active')) {
+            initializeCustomArray();
+        }
+    });
+
+    document.getElementById('target-value').addEventListener('change', function() {
+        targetValue = parseInt(this.value);
+        document.getElementById('target-value-display').textContent = targetValue;
+        resetAlgorithm();
+    });
+
+    document.getElementById('speed-control').addEventListener('input', function() {
+        animationSpeed = parseInt(this.value);
+    });
+
+    document.getElementById('start-btn').addEventListener('click', function() {
+        if (document.getElementById('custom-tab').classList.contains('active')) {
+            if (!initializeCustomArray()) return;
+        }
+
+        if (algorithmSteps.length === 0) {
+            generateBinarySearchSteps();
+        }
+        executeAllSteps();
+    });
+
+    document.getElementById('next-step-btn').addEventListener('click', function() {
+        if (document.getElementById('custom-tab').classList.contains('active')) {
+            if (!initializeCustomArray()) return;
+        }
+
+        if (algorithmSteps.length === 0) {
+            generateBinarySearchSteps();
+        }
+        executeCurrentStep();
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        if (document.getElementById('preset-tab').classList.contains('active')) {
+            const presetKey = document.getElementById('preset-select').value;
+            initializePresetArray(presetKey);
+        } else {
+            initializeCustomArray();
+        }
+    });
+
+    // 窗口大小调整
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化
+    setupTabSwitching();
+    initializePresetArray('1-15');
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+</script>
+</body>
+</html>
