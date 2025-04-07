@@ -30,7 +30,7 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 ## 🖥️ 在线体验
 > 采用Vercel自动部署，国内加载可能较慢,怎么提速，你懂的兄弟。
 
-👉 [VisuAlgoX 官方网站](https://visux.ilikexff.cn/)
+👉 [VisuAlgoX 官方网站](https://www.yaogame.tech/)
 
 ---
 
@@ -54,7 +54,7 @@ VisuAlgoX 是一个面向计算机科学和游戏开发的 **交互式算法可�
 
 ### 2️⃣ 直接在浏览器中使用
 
-无需安装，可直接访问 👉 [VisuAlgoX 在线版](https://visux.ilikexff.cn/)
+无需安装，可直接访问 👉 [VisuAlgoX 在线版](https://www.yaogame.tech/)
 
 ---
 
